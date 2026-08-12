@@ -1,5 +1,8 @@
-const getApiBaseUrl = () => '/api';
-const getUploadBaseUrl = () => '';
+const getApiBaseUrl = () =>
+  import.meta.env.VITE_API_URL || '/api';
+
+const getUploadsBaseUrl = () =>
+  import.meta.env.VITE_UPLOADS_URL || '/uploads';
 
 function getAuthToken(): string | null {
   return localStorage.getItem('smart_complaint_token');
