@@ -108,32 +108,40 @@ export async function sendPasswordResetPinEmail(toEmail: string, pin: string): P
       return { sent: true, isSimulated: true };
     }
 
-    console.log(`📧 Sending Password Reset PIN Email to ${toEmail} via Gmail (${user})...`);
+    const recipientHandle = toEmail.split('@')[0] || 'User';
 
     const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0f172a; color: #ffffff; border-radius: 16px;">
-        <div style="text-align: center; padding-bottom: 20px; border-bottom: 1px solid #1e293b;">
-          <h1 style="color: #3b82f6; margin: 0; font-size: 24px;">🔒 EduFix AI Password Security</h1>
-          <p style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Smart Complaint Management System</p>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; background-color: #121212; color: #e2e8f0; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        
+        <!-- Header Banner Box -->
+        <div style="background-color: #f8fafc; border-radius: 16px; padding: 24px 16px; text-align: center; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <h1 style="color: #0f172a; margin: 0; font-size: 26px; font-weight: 800; tracking: -0.5px;">Verify your email</h1>
         </div>
 
-        <div style="padding: 24px 0; text-align: center;">
-          <h2 style="color: #f8fafc; font-size: 18px; margin-top: 0;">Password Reset Verification PIN</h2>
-          <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
-            We received a request to reset your password. Use the 6-digit PIN below to complete your reset request:
+        <!-- Main Body -->
+        <div style="padding: 8px 12px; color: #cbd5e1; font-size: 15px; line-height: 1.6;">
+          <p style="margin-top: 0; font-weight: 600; color: #f1f5f9;">Hey ${recipientHandle},</p>
+          <p style="margin-bottom: 24px; color: #94a3b8;">
+            Welcome to EduFix AI. Please verify your email address to complete your password reset request.
           </p>
 
-          <div style="display: inline-block; background-color: #1e293b; padding: 16px 36px; border-radius: 14px; margin: 20px 0; border: 2px solid #3b82f6; letter-spacing: 8px; font-size: 32px; font-weight: 900; color: #38bdf8;">
-            ${pin}
+          <!-- Centered Verification Code Card -->
+          <div style="background-color: #1e1e1e; border: 1px solid #2d2d2d; border-radius: 18px; padding: 28px 20px; text-align: center; margin: 24px 0;">
+            <p style="margin: 0; font-size: 13px; color: #94a3b8; font-weight: 600;">Your verification code</p>
+            <div style="font-size: 38px; font-weight: 900; color: #e54d26; letter-spacing: 10px; font-family: 'Courier New', Courier, monospace; margin: 16px 0 8px 0;">
+              ${pin.split('').join(' ')}
+            </div>
           </div>
 
-          <p style="color: #94a3b8; font-size: 12px; margin-top: 10px;">
-            ⏰ This verification PIN expires in <strong>15 minutes</strong>. Do not share this PIN with anyone.
+          <p style="color: #94a3b8; font-size: 13px; margin: 24px 0 32px 0;">
+            This code will expire in <strong>10 minutes</strong>, so be sure to use it soon.
           </p>
-        </div>
 
-        <div style="text-align: center; padding-top: 16px; border-top: 1px solid #1e293b; font-size: 11px; color: #64748b;">
-          &copy; ${new Date().getFullYear()} EduFix AI Smart Complaint System • Security Center
+          <!-- Sign Off -->
+          <div style="color: #cbd5e1; font-size: 14px; line-height: 1.5; border-top: 1px solid #262626; padding-top: 20px;">
+            <p style="margin: 0;">See you there,</p>
+            <p style="margin: 4px 0 0 0; font-weight: 700; color: #f8fafc;">The EduFix AI team</p>
+          </div>
         </div>
       </div>
     `;
@@ -142,7 +150,7 @@ export async function sendPasswordResetPinEmail(toEmail: string, pin: string): P
     await transporter.sendMail({
       from: getSenderEmail(),
       to: toEmail,
-      subject: `🔑 ${pin} - Your EduFix Password Reset PIN`,
+      subject: 'Verify your email for EduFix AI',
       html: htmlContent
     });
 

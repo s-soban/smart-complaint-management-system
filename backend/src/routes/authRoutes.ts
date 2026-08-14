@@ -159,7 +159,6 @@ router.post('/forgot-password', async (req: AuthRequest, res: Response) => {
     return res.json({
       success: true,
       message,
-      pin: pin,
       isSimulated: emailResult.isSimulated
     });
   } catch (err: any) {

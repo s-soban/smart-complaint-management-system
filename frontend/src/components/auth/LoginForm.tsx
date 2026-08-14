@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Role } from '../../types';
-import { Sparkles, LogIn, Lock, Mail, UserCheck, KeyRound, GraduationCap, ShieldCheck, Wrench } from 'lucide-react';
+import { Sparkles, LogIn, Lock, Mail } from 'lucide-react';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
@@ -9,7 +8,7 @@ interface LoginFormProps {
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onOpenForgotPassword }) => {
-  const { login, quickDemoLogin, isLoading } = useAuth();
+  const { login, isLoading } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -22,16 +21,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onOpen
     } catch (err: any) {
       setErrorMsg(err.message || 'Login failed. Check credentials.');
     }
-  };
-
-  const handleDemoClick = (targetRole: Role) => {
-    setErrorMsg('');
-    let demoEmail = 'student1@campus.edu';
-    if (targetRole === 'maintenance') demoEmail = 'staff1@campus.edu';
-    if (targetRole === 'admin') demoEmail = 'admin@campus.edu';
-
-    setIdentifier(demoEmail);
-    setPassword('password123');
   };
 
   return (
@@ -50,39 +39,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onOpen
           <p className="text-xs text-slate-400">Smart Complaint & Infrastructure Management System</p>
         </div>
 
-        {/* Demo Persona Credentials Reference Card */}
-        <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-2.5">
-          <span className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider block text-center flex items-center justify-center gap-1.5">
-            <KeyRound className="w-3.5 h-3.5 text-blue-400" /> Click any persona below to fill fields:
-          </span>
-          <div className="space-y-1.5 text-[11px]">
-            <button
-              type="button"
-              onClick={() => handleDemoClick('student')}
-              className="w-full flex items-center justify-between p-2 rounded-xl bg-blue-950/40 border border-blue-800/40 text-blue-300 hover:bg-blue-900/50 transition-colors text-left"
-            >
-              <span className="font-bold flex items-center gap-1"><GraduationCap className="w-3.5 h-3.5" /> Student Persona</span>
-              <span className="font-mono text-[10px] bg-blue-900/60 px-2 py-0.5 rounded text-blue-200 font-extrabold">Fill Student →</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoClick('maintenance')}
-              className="w-full flex items-center justify-between p-2 rounded-xl bg-amber-950/40 border border-amber-800/40 text-amber-300 hover:bg-amber-900/50 transition-colors text-left"
-            >
-              <span className="font-bold flex items-center gap-1"><Wrench className="w-3.5 h-3.5" /> Maintenance Persona</span>
-              <span className="font-mono text-[10px] bg-amber-900/60 px-2 py-0.5 rounded text-amber-200 font-extrabold">Fill Staff →</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDemoClick('admin')}
-              className="w-full flex items-center justify-between p-2 rounded-xl bg-indigo-950/40 border border-indigo-800/40 text-indigo-300 hover:bg-indigo-900/50 transition-colors text-left"
-            >
-              <span className="font-bold flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> Admin Persona</span>
-              <span className="font-mono text-[10px] bg-indigo-900/60 px-2 py-0.5 rounded text-indigo-200 font-extrabold">Fill Admin →</span>
-            </button>
-          </div>
-        </div>
-
         {errorMsg && (
           <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs font-bold text-center">
             {errorMsg}
@@ -98,7 +54,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onOpen
               <input
                 type="text"
                 required
-                placeholder="student1@campus.edu or STU-2024-001"
+                placeholder="e.g. soban1, soban2, soban3"
                 value={identifier}
                 onChange={e => setIdentifier(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-xs focus:ring-2 focus:ring-blue-500"

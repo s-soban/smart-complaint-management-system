@@ -35,7 +35,8 @@ export async function seedDatabase() {
     DELETE FROM users;
   `);
 
-  const passwordHash = await bcrypt.hash('password123', 10);
+  const passwordHashDefault = await bcrypt.hash('password123', 10);
+  const passwordHashSoban = await bcrypt.hash('soban@01011985', 10);
   const now = new Date();
 
   // 1. Seed Buildings
@@ -88,72 +89,63 @@ export async function seedDatabase() {
     categoryIds[c.name] = res.lastID;
   }
 
-  // 3. Seed Users (3 Admins, 5 Maintenance Staff, 20 Students)
-  console.log('👤 Creating Users (3 Admins, 5 Maintenance, 20 Students)...');
+  // 3. Seed Users
+  console.log('👤 Creating Admins, Maintenance Staff, and Students...');
 
   // Admins
   const admins = [
-    { name: 'Dr. Arthur Pendelton', idCode: 'ADM-001', email: 'admin@campus.edu', dept: 'Facilities Management' },
-    { name: 'Sarah Jenkins', idCode: 'ADM-002', email: 'sarah.admin@campus.edu', dept: 'Campus Operations' },
-    { name: 'Marcus Vance', idCode: 'ADM-003', email: 'marcus.admin@campus.edu', dept: 'Estate Administration' }
+    { name: 'Soban Admin', idCode: 'soban3', email: 'soban3@campus.edu', dept: 'Facilities Management', pass: passwordHashSoban },
+    { name: 'Dr. Arthur Pendelton', idCode: 'ADM-001', email: 'admin@campus.edu', dept: 'Facilities Management', pass: passwordHashDefault },
+    { name: 'Sarah Jenkins', idCode: 'ADM-002', email: 'sarah.admin@campus.edu', dept: 'Campus Operations', pass: passwordHashDefault }
   ];
   const adminIds: number[] = [];
   for (const a of admins) {
     const res = await dbRun(
       `INSERT INTO users (full_name, user_id_code, email, phone, department, password_hash, role)
        VALUES (?, ?, ?, '555-0199', ?, ?, 'admin')`,
-      [a.name, a.idCode, a.email, a.dept, passwordHash]
+      [a.name, a.idCode, a.email, a.dept, a.pass]
     );
     adminIds.push(res.lastID);
   }
 
   // Maintenance Staff
   const maintenanceStaff = [
-    { name: 'Robert Miller', idCode: 'STF-101', email: 'staff1@campus.edu', dept: 'Electrical Maintenance', phone: '555-0201' },
-    { name: 'David Kowalski', idCode: 'STF-102', email: 'staff2@campus.edu', dept: 'Plumbing & Water Services', phone: '555-0202' },
-    { name: 'Elena Rostova', idCode: 'STF-103', email: 'staff3@campus.edu', dept: 'IT & Network Infrastructure', phone: '555-0203' },
-    { name: 'James Carter', idCode: 'STF-104', email: 'staff4@campus.edu', dept: 'General Civil & Carpentry', phone: '555-0204' },
-    { name: 'Hassan Ali', idCode: 'STF-105', email: 'staff5@campus.edu', dept: 'HVAC & Refrigeration', phone: '555-0205' }
+    { name: 'Soban Maintenance', idCode: 'soban2', email: 'soban2@campus.edu', dept: 'Electrical Maintenance', phone: '555-0201', pass: passwordHashSoban },
+    { name: 'Robert Miller', idCode: 'STF-101', email: 'staff1@campus.edu', dept: 'Electrical Maintenance', phone: '555-0201', pass: passwordHashDefault },
+    { name: 'David Kowalski', idCode: 'STF-102', email: 'staff2@campus.edu', dept: 'Plumbing & Water Services', phone: '555-0202', pass: passwordHashDefault },
+    { name: 'Elena Rostova', idCode: 'STF-103', email: 'staff3@campus.edu', dept: 'IT & Network Infrastructure', phone: '555-0203', pass: passwordHashDefault },
+    { name: 'James Carter', idCode: 'STF-104', email: 'staff4@campus.edu', dept: 'General Civil & Carpentry', phone: '555-0204', pass: passwordHashDefault }
   ];
   const staffIds: number[] = [];
   for (const m of maintenanceStaff) {
     const res = await dbRun(
       `INSERT INTO users (full_name, user_id_code, email, phone, department, password_hash, role)
        VALUES (?, ?, ?, ?, ?, ?, 'maintenance')`,
-      [m.name, m.idCode, m.email, m.phone, m.dept, passwordHash]
+      [m.name, m.idCode, m.email, m.phone, m.dept, m.pass]
     );
     staffIds.push(res.lastID);
   }
 
-  // 20 Students
+  // Students
   const students = [
-    { name: 'Alex Johnson', idCode: 'STU-2024-001', email: 'student1@campus.edu', dept: 'Computer Science', year: '3rd Year' },
-    { name: 'Emily Zhang', idCode: 'STU-2024-002', email: 'emily.z@campus.edu', dept: 'Electrical Engineering', year: '4th Year' },
-    { name: 'Michael Brown', idCode: 'STU-2024-003', email: 'michael.b@campus.edu', dept: 'Mechanical Engineering', year: '2nd Year' },
-    { name: 'Sophia Martinez', idCode: 'STU-2024-004', email: 'sophia.m@campus.edu', dept: 'Civil Engineering', year: '3rd Year' },
-    { name: 'Daniel Kim', idCode: 'STU-2024-005', email: 'daniel.k@campus.edu', dept: 'Biotechnology', year: '1st Year' },
-    { name: 'Jessica Taylor', idCode: 'STU-2024-006', email: 'jessica.t@campus.edu', dept: 'Architecture', year: '4th Year' },
-    { name: 'Liam Wilson', idCode: 'STU-2024-007', email: 'liam.w@campus.edu', dept: 'Physics', year: '2nd Year' },
-    { name: 'Olivia Davis', idCode: 'STU-2024-008', email: 'olivia.d@campus.edu', dept: 'Chemistry', year: '3rd Year' },
-    { name: 'Noah Thomas', idCode: 'STU-2024-009', email: 'noah.t@campus.edu', dept: 'Business Administration', year: '1st Year' },
-    { name: 'Emma White', idCode: 'STU-2024-010', email: 'emma.w@campus.edu', dept: 'Mathematics', year: '3rd Year' },
-    { name: 'Ethan Harris', idCode: 'STU-2024-011', email: 'ethan.h@campus.edu', dept: 'Computer Science', year: '2nd Year' },
-    { name: 'Ava Martin', idCode: 'STU-2024-012', email: 'ava.m@campus.edu', dept: 'Economics', year: '4th Year' },
-    { name: 'Lucas Clark', idCode: 'STU-2024-013', email: 'lucas.c@campus.edu', dept: 'Chemical Engineering', year: '1st Year' },
-    { name: 'Mia Rodriguez', idCode: 'STU-2024-014', email: 'mia.r@campus.edu', dept: 'Psychology', year: '3rd Year' },
-    { name: 'Benjamin Lewis', idCode: 'STU-2024-015', email: 'benjamin.l@campus.edu', dept: 'Environmental Science', year: '2nd Year' },
-    { name: 'Charlotte Lee', idCode: 'STU-2024-016', email: 'charlotte.l@campus.edu', dept: 'Computer Science', year: '4th Year' },
-    { name: 'Henry Walker', idCode: 'STU-2024-017', email: 'henry.w@campus.edu', dept: 'Electrical Engineering', year: '3rd Year' },
-    { name: 'Amelia Hall', idCode: 'STU-2024-018', email: 'amelia.h@campus.edu', dept: 'Design & Media', year: '2nd Year' },
-    { name: 'Alexander Young', idCode: 'STU-2024-019', email: 'alex.y@campus.edu', dept: 'Civil Engineering', year: '1st Year' },
-    { name: 'Harper Allen', idCode: 'STU-2024-020', email: 'harper.a@campus.edu', dept: 'Biomedical Engineering', year: '4th Year' }
+    { name: 'Soban Student', idCode: 'soban1', email: 'soban1@campus.edu', dept: 'Computer Science', year: '3rd Year', pass: passwordHashSoban },
+    { name: 'Alex Johnson', idCode: 'STU-2024-001', email: 'student1@campus.edu', dept: 'Computer Science', year: '3rd Year', pass: passwordHashDefault },
+    { name: 'Emily Zhang', idCode: 'STU-2024-002', email: 'emily.z@campus.edu', dept: 'Electrical Engineering', year: '4th Year', pass: passwordHashDefault },
+    { name: 'Michael Brown', idCode: 'STU-2024-003', email: 'michael.b@campus.edu', dept: 'Mechanical Engineering', year: '2nd Year', pass: passwordHashDefault },
+    { name: 'Sophia Martinez', idCode: 'STU-2024-004', email: 'sophia.m@campus.edu', dept: 'Civil Engineering', year: '3rd Year', pass: passwordHashDefault },
+    { name: 'Daniel Kim', idCode: 'STU-2024-005', email: 'daniel.k@campus.edu', dept: 'Biotechnology', year: '1st Year', pass: passwordHashDefault },
+    { name: 'Jessica Taylor', idCode: 'STU-2024-006', email: 'jessica.t@campus.edu', dept: 'Architecture', year: '4th Year', pass: passwordHashDefault },
+    { name: 'Liam Wilson', idCode: 'STU-2024-007', email: 'liam.w@campus.edu', dept: 'Physics', year: '2nd Year', pass: passwordHashDefault },
+    { name: 'Olivia Davis', idCode: 'STU-2024-008', email: 'olivia.d@campus.edu', dept: 'Chemistry', year: '3rd Year', pass: passwordHashDefault },
+    { name: 'Noah Thomas', idCode: 'STU-2024-009', email: 'noah.t@campus.edu', dept: 'Business Administration', year: '1st Year', pass: passwordHashDefault },
+    { name: 'Emma White', idCode: 'STU-2024-010', email: 'emma.w@campus.edu', dept: 'Mathematics', year: '3rd Year', pass: passwordHashDefault }
   ];
   const studentIds: number[] = [];
   for (const s of students) {
     const res = await dbRun(
       `INSERT INTO users (full_name, user_id_code, email, phone, department, year_class, password_hash, role)
        VALUES (?, ?, ?, '555-0100', ?, ?, ?, 'student')`,
-      [s.name, s.idCode, s.email, s.dept, s.year, passwordHash]
+      [s.name, s.idCode, s.email, s.dept, s.year, s.pass]
     );
     studentIds.push(res.lastID);
   }
@@ -345,10 +337,14 @@ export async function seedDatabase() {
 
   console.log('✅ Database Seeding Completed Successfully!');
   console.log('----------------------------------------------------');
-  console.log('🔑 DEMO ACCOUNTS READY TO LOGIN:');
-  console.log('   👨‍🎓 Student:     student1@campus.edu   / password123');
-  console.log('   🛠️ Maintenance: staff1@campus.edu     / password123');
-  console.log('   👨‍💼 Admin:       admin@campus.edu      / password123');
+  console.log('🔑 NEW SOBAN ACCOUNTS:');
+  console.log('   👨‍🎓 Student:     soban1   / soban@01011985');
+  console.log('   🛠️ Maintenance: soban2   / soban@01011985');
+  console.log('   👨‍💼 Admin:       soban3   / soban@01011985');
+  console.log('🔑 CLASSIC DEMO ACCOUNTS:');
+  console.log('   👨‍🎓 Student:     student1@campus.edu / password123');
+  console.log('   🛠️ Maintenance: staff1@campus.edu   / password123');
+  console.log('   👨‍💼 Admin:       admin@campus.edu    / password123');
   console.log('----------------------------------------------------');
 }
 

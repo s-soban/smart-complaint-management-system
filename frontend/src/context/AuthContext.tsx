@@ -83,11 +83,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const quickDemoLogin = async (targetRole: Role) => {
-    let demoEmail = 'student1@campus.edu';
-    if (targetRole === 'maintenance') demoEmail = 'staff1@campus.edu';
-    if (targetRole === 'admin') demoEmail = 'admin@campus.edu';
+    let demoIdentifier = 'soban1';
+    if (targetRole === 'maintenance') demoIdentifier = 'soban2';
+    if (targetRole === 'admin') demoIdentifier = 'soban3';
 
-    await login(demoEmail, 'password123');
+    await login(demoIdentifier, 'soban@01011985');
   };
 
   return (
