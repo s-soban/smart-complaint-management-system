@@ -28,6 +28,13 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 // Serve uploaded static assets
 const uploadsPath = path.resolve(process.cwd(), 'uploads');
 app.use('/uploads', express.static(uploadsPath));
+app.use('/uploads', (req, res) => {
+  const fallbackSvg = path.join(uploadsPath, 'complaints/sample-before-1.svg');
+  if (fs.existsSync(fallbackSvg)) {
+    return res.sendFile(fallbackSvg);
+  }
+  return res.status(404).json({ success: false, message: 'Upload asset not found.' });
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);

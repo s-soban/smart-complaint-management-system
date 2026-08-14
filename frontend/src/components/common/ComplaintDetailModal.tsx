@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { Complaint, ComplaintImage, StatusHistory, Comment, DuplicateMatch } from '../../types';
 import { StatusBadge } from './StatusBadge';
 import { PriorityBadge } from './PriorityBadge';
 import { TimelineTracker } from './TimelineTracker';
 import { useAuth } from '../../context/AuthContext';
-import { X, Calendar, MapPin, User, MessageSquare, Send, CheckCircle2, AlertTriangle, ShieldCheck, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { X, Calendar, MapPin, User, MessageSquare, Send, CheckCircle2, AlertTriangle, ShieldCheck, Sparkles, Image as ImageIcon, Upload } from 'lucide-react';
 
 interface ComplaintDetailModalProps {
   complaintId: string;
@@ -35,6 +35,12 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
   const [statusComment, setStatusComment] = useState('');
   const [resolutionSummary, setResolutionSummary] = useState('');
   const [repairFiles, setRepairFiles] = useState<File[]>([]);
+  const [repairPreviews, setRepairPreviews] = useState<string[]>([]);
+  const [isRepairDragging, setIsRepairDragging] = useState(false);
+  const repairFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Lightbox State
+  const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDetails();
@@ -112,12 +118,103 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
         setStatusComment('');
         setResolutionSummary('');
         setRepairFiles([]);
+        setRepairPreviews([]);
         fetchDetails();
         if (onRefresh) onRefresh();
       }
     } catch (err) {
       alert('Failed to update status');
     }
+  };
+
+  const processRepairFiles = (fileList: File[]) => {
+    const remainingSlots = 5 - repairFiles.length;
+    if (remainingSlots <= 0) {
+      alert('You can upload a maximum of 5 completion photos.');
+      return;
+    }
+
+    const filesToProcess = fileList.slice(0, remainingSlots);
+    const validFiles: File[] = [];
+    const newPreviews: string[] = [];
+
+    for (const file of filesToProcess) {
+      if (!file.type.startsWith('image/')) {
+        alert(`${file.name} is not a valid image file.`);
+        continue;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`${file.name} exceeds the 10MB limit.`);
+        continue;
+      }
+      validFiles.push(file);
+      newPreviews.push(URL.createObjectURL(file));
+    }
+
+    setRepairFiles(prev => [...prev, ...validFiles]);
+    setRepairPreviews(prev => [...prev, ...newPreviews]);
+  };
+
+  const handleRepairFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processRepairFiles(Array.from(e.target.files));
+    }
+    e.target.value = '';
+  };
+
+  const removeRepairImage = (index: number) => {
+    setRepairFiles(prev => prev.filter((_, i) => i !== index));
+    setRepairPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRepairDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsRepairDragging(true);
+  };
+
+  const handleRepairDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+    setIsRepairDragging(true);
+  };
+
+  const handleRepairDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget && !e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsRepairDragging(false);
+    }
+  };
+
+  const handleRepairDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsRepairDragging(false);
+
+    let droppedFiles: File[] = [];
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      droppedFiles = Array.from(e.dataTransfer.files);
+    } else if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      for (let i = 0; i < e.dataTransfer.items.length; i++) {
+        const item = e.dataTransfer.items[i];
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) droppedFiles.push(file);
+        }
+      }
+    }
+
+    if (droppedFiles.length > 0) {
+      processRepairFiles(droppedFiles);
+    }
+  };
+
+  const openRepairFilePicker = () => {
+    repairFileInputRef.current?.click();
   };
 
   const handleMergeDuplicate = async (targetId: string, action: 'merge' | 'separate') => {
@@ -262,13 +359,23 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
                     {beforeImages.map(img => (
-                      <a key={img.id} href={img.image_url} target="_blank" rel="noreferrer">
+                      <div
+                        key={img.id}
+                        onClick={() => setActiveLightboxImage(img.image_url)}
+                        className="relative h-32 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 group cursor-pointer shadow-sm hover:shadow-md transition-all"
+                      >
                         <img
                           src={img.image_url}
-                          alt="Before repair"
-                          className="w-full h-32 object-cover rounded-xl border border-slate-200 dark:border-slate-700 hover:opacity-90"
+                          alt="Before repair evidence"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/uploads/complaints/sample-before-1.svg';
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
-                      </a>
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-bold gap-1">
+                          <ImageIcon className="w-4 h-4" /> Click to view
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -284,13 +391,23 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
                     {afterImages.map(img => (
-                      <a key={img.id} href={img.image_url} target="_blank" rel="noreferrer">
+                      <div
+                        key={img.id}
+                        onClick={() => setActiveLightboxImage(img.image_url)}
+                        className="relative h-32 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 group cursor-pointer shadow-sm hover:shadow-md transition-all"
+                      >
                         <img
                           src={img.image_url}
-                          alt="After repair"
-                          className="w-full h-32 object-cover rounded-xl border border-slate-200 dark:border-slate-700 hover:opacity-90"
+                          alt="After repair evidence"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/uploads/repairs/sample-after-1.svg';
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
-                      </a>
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-bold gap-1">
+                          <ImageIcon className="w-4 h-4" /> Click to view
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -425,17 +542,112 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
                   </select>
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Upload After-Repair Photo
+                    Upload After-Repair Completion Photos
                   </label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={e => setRepairFiles(Array.from(e.target.files || []))}
-                    className="w-full text-xs text-slate-500"
-                  />
+
+                  <div
+                    onClick={openRepairFilePicker}
+                    onDragEnter={handleRepairDragEnter}
+                    onDragOver={handleRepairDragOver}
+                    onDragLeave={handleRepairDragLeave}
+                    onDrop={handleRepairDrop}
+                    className={`relative border-2 border-dashed rounded-2xl p-4 text-center transition-all cursor-pointer select-none ${
+                      isRepairDragging
+                        ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40 ring-4 ring-emerald-500/20'
+                        : 'border-slate-300 dark:border-slate-700 hover:border-emerald-500 bg-white/60 dark:bg-slate-800/40'
+                    }`}
+                  >
+                    <Upload
+                      className={`w-7 h-7 mx-auto mb-1 transition-transform duration-200 ${
+                        isRepairDragging ? 'text-emerald-600 scale-110' : 'text-slate-400'
+                      }`}
+                    />
+
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                      {isRepairDragging ? (
+                        <span className="text-emerald-600 font-extrabold text-xs">
+                          ✨ Drop completion photos here to attach
+                        </span>
+                      ) : (
+                        <>
+                          Drag & drop repair photos here, or{' '}
+                          <span className="text-emerald-600 dark:text-emerald-400 underline font-bold hover:text-emerald-700">
+                            browse files / open gallery
+                          </span>
+                        </>
+                      )}
+                    </p>
+
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Supports JPG, PNG, WEBP up to 10MB each • Max 5 completion photos
+                    </p>
+
+                    <input
+                      ref={repairFileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*,image/heic,image/heif"
+                      onChange={handleRepairFileChange}
+                      onClick={(e) => e.stopPropagation()}
+                      className="hidden"
+                      id="repair-file-upload-input"
+                    />
+
+                    {repairPreviews.length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+                        <div className="flex flex-wrap justify-center items-center gap-2.5">
+                          {repairPreviews.map((src, i) => (
+                            <div
+                              key={`${src}-${i}`}
+                              className="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-white dark:border-slate-700 shadow-md group transition-transform hover:scale-105"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <img
+                                src={src}
+                                alt={`Repair photo ${i + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeRepairImage(i);
+                                }}
+                                className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-rose-600 text-white opacity-90 group-hover:opacity-100 hover:bg-rose-700 transition-all shadow-md"
+                                title="Remove photo"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+
+                              <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[9px] py-0.5 font-bold">
+                                Repair {i + 1}
+                              </div>
+                            </div>
+                          ))}
+
+                          {repairFiles.length < 5 && (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openRepairFilePicker();
+                              }}
+                              className="w-20 h-20 rounded-xl border-2 border-dashed border-emerald-400 dark:border-emerald-600 bg-emerald-50/50 dark:bg-emerald-950/30 flex flex-col items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer"
+                            >
+                              <ImageIcon className="w-5 h-5 mb-0.5" />
+                              <span className="text-[9px] font-bold">+ Add Photo</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2 font-semibold">
+                          {repairFiles.length} / 5 completion photos attached
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="md:col-span-2">
@@ -526,6 +738,52 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
           </div>
         </div>
       </div>
+      {/* In-App Lightbox Photo Viewer */}
+      {activeLightboxImage && (
+        <div
+          className="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setActiveLightboxImage(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full max-h-[90vh] bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 bg-slate-900/90 flex items-center justify-between border-b border-slate-800">
+              <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-blue-400" /> Photo Evidence View
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={activeLightboxImage}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors"
+                >
+                  Download / Original
+                </a>
+                <button
+                  onClick={() => setActiveLightboxImage(null)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-800 text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 flex items-center justify-center bg-black/60 min-h-[300px] flex-1">
+              <img
+                src={activeLightboxImage}
+                alt="Full photo evidence"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/uploads/complaints/sample-before-1.svg';
+                }}
+                className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-lg"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
