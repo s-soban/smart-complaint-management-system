@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { Building, Category } from '../../types';
 import { PriorityBadge } from '../common/PriorityBadge';
@@ -26,6 +26,8 @@ export const FileComplaintForm: React.FC<FileComplaintFormProps> = ({ onSuccess,
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // AI Live Insights State
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -46,6 +48,19 @@ export const FileComplaintForm: React.FC<FileComplaintFormProps> = ({ onSuccess,
       }
     }
     loadData();
+  }, []);
+
+  // Prevent browser default drag-and-drop behavior (opening dropped files in a new tab)
+  useEffect(() => {
+    const preventGlobalDrop = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('dragover', preventGlobalDrop);
+    window.addEventListener('drop', preventGlobalDrop);
+    return () => {
+      window.removeEventListener('dragover', preventGlobalDrop);
+      window.removeEventListener('drop', preventGlobalDrop);
+    };
   }, []);
 
   // Debounced AI Live Auto-Categorize & Priority Analysis
@@ -85,18 +100,30 @@ export const FileComplaintForm: React.FC<FileComplaintFormProps> = ({ onSuccess,
     return () => clearTimeout(timer);
   }, [title, description, buildingId, roomArea]);
 
-  const processImageFiles = (fileList: File[]) => {
+
+const processImageFiles = (fileList: File[]) => {
+  const remainingSlots = 5 - images.length;
+
+  if (remainingSlots <= 0) {
+    alert('You can upload a maximum of 5 photos.');
+    return;
+  }
+
+  const filesToProcess = fileList.slice(0, remainingSlots);
+
   const validFiles: File[] = [];
   const newPreviews: string[] = [];
 
-  for (const file of fileList) {
+  for (const file of filesToProcess) {
+    // Check image type
     if (!file.type.startsWith('image/')) {
-      alert(`File ${file.name} is not an image.`);
+      alert(`${file.name} is not a valid image file.`);
       continue;
     }
 
+    // Check file size
     if (file.size > 10 * 1024 * 1024) {
-      alert(`File ${file.name} exceeds 10MB limit.`);
+      alert(`${file.name} exceeds the 10MB limit.`);
       continue;
     }
 
@@ -109,23 +136,35 @@ export const FileComplaintForm: React.FC<FileComplaintFormProps> = ({ onSuccess,
 };
 
 const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  if (e.target.files) {
+  if (e.target.files && e.target.files.length > 0) {
     processImageFiles(Array.from(e.target.files));
   }
 
+  // Allows selecting the same image again
   e.target.value = '';
+};
+
+const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setIsDragging(true);
 };
 
 const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
   e.preventDefault();
   e.stopPropagation();
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'copy';
+  }
   setIsDragging(true);
 };
 
 const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
   e.preventDefault();
   e.stopPropagation();
-  setIsDragging(false);
+  if (e.currentTarget && !e.currentTarget.contains(e.relatedTarget as Node)) {
+    setIsDragging(false);
+  }
 };
 
 const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -133,12 +172,30 @@ const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
   e.stopPropagation();
   setIsDragging(false);
 
-  const droppedFiles = Array.from(e.dataTransfer.files);
+  let droppedFiles: File[] = [];
+
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    droppedFiles = Array.from(e.dataTransfer.files);
+  } else if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+    for (let i = 0; i < e.dataTransfer.items.length; i++) {
+      const item = e.dataTransfer.items[i];
+      if (item.kind === 'file') {
+        const file = item.getAsFile();
+        if (file) droppedFiles.push(file);
+      }
+    }
+  }
 
   if (droppedFiles.length > 0) {
     processImageFiles(droppedFiles);
   }
 };
+
+const openFilePicker = () => {
+  fileInputRef.current?.click();
+};
+
+
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
@@ -374,56 +431,116 @@ const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
             />
           </div>
 
-          {/* File Upload Section */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Upload Evidence Photos (Multiple supported)
-            </label>
+            {/* File Upload Section */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Upload Evidence Photos (Multiple supported)
+              </label>
 
-            <div
-           onDragOver={handleDragOver}
-           onDragLeave={handleDragLeave}
-           onDrop={handleDrop}
-           className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors ${
-           isDragging
-          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
-           : 'border-slate-300 dark:border-slate-700 hover:border-blue-500 bg-slate-50/50 dark:bg-slate-800/30'
-           }`}
-            >
-              <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                Drag & drop photos here, or <label htmlFor="file-upload-input" className="text-blue-600 dark:text-blue-400 cursor-pointer underline">browse files</label>
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">Supports JPG, PNG, WEBP up to 10MB each</p>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-                id="file-upload-input"
-              />
-            </div>
+              <div
+                onClick={openFilePicker}
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`relative border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer select-none ${
+                  isDragging
+                    ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/40 ring-4 ring-blue-500/20'
+                    : 'border-slate-300 dark:border-slate-700 hover:border-blue-500 bg-slate-50/50 dark:bg-slate-800/30'
+                }`}
+              >
+                <Upload
+                  className={`w-9 h-9 mx-auto mb-2 transition-transform duration-200 ${
+                    isDragging ? 'text-blue-600 scale-110' : 'text-slate-400'
+                  }`}
+                />
 
-            {/* Image Previews */}
-            {imagePreviews.length > 0 && (
-              <div className="flex flex-wrap gap-3 mt-4">
-                {imagePreviews.map((src, i) => (
-                  <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 shadow-sm group">
-                    <img src={src} alt={`Upload preview ${i}`} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(i)}
-                      className="absolute top-1 right-1 p-1 rounded-full bg-rose-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                  {isDragging ? (
+                    <span className="text-blue-600 font-extrabold text-sm">
+                      ✨ Drop your photos here to attach
+                    </span>
+                  ) : (
+                    <>
+                      Drag & drop photos here, or{' '}
+                      <span className="text-blue-600 dark:text-blue-400 underline font-bold hover:text-blue-700">
+                        browse files / open gallery
+                      </span>
+                    </>
+                  )}
+                </p>
+
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Supports JPG, PNG, WEBP, GIF up to 10MB each • Maximum 5 photos
+                </p>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,image/heic,image/heif"
+                  onChange={handleImageChange}
+                  onClick={(e) => e.stopPropagation()}
+                  className="hidden"
+                  id="file-upload-input"
+                />
+
+                {/* Photos Grid inside Upload Box */}
+                {imagePreviews.length > 0 && (
+                  <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <div className="flex flex-wrap justify-center items-center gap-3">
+                      {imagePreviews.map((src, i) => (
+                        <div
+                          key={`${src}-${i}`}
+                          className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-white dark:border-slate-700 shadow-md group transition-transform hover:scale-105"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <img
+                            src={src}
+                            alt={`Evidence photo ${i + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeImage(i);
+                            }}
+                            className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full bg-rose-600 text-white opacity-90 group-hover:opacity-100 hover:bg-rose-700 transition-all shadow-md"
+                            title="Remove photo"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] py-1 font-bold">
+                            Photo {i + 1}
+                          </div>
+                        </div>
+                      ))}
+
+                      {images.length < 5 && (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openFilePicker();
+                          }}
+                          className="w-24 h-24 rounded-xl border-2 border-dashed border-blue-400 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-950/30 flex flex-col items-center justify-center text-blue-600 dark:text-blue-400 hover:bg-blue-100/60 dark:hover:bg-blue-900/40 transition-colors cursor-pointer"
+                        >
+                          <ImageIcon className="w-6 h-6 mb-1" />
+                          <span className="text-[10px] font-bold">+ Add Photo</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-3 font-semibold">
+                      {images.length} / 5 photos attached
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
 
         {/* Submit Actions */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
