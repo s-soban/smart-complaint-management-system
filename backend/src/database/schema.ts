@@ -134,6 +134,16 @@ export async function initDatabaseSchema() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS complaint_supports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      complaint_id TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (complaint_id) REFERENCES complaints(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(complaint_id, user_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
     CREATE INDEX IF NOT EXISTS idx_complaints_submitted_by ON complaints(submitted_by);
     CREATE INDEX IF NOT EXISTS idx_complaints_assigned_to ON complaints(assigned_to);
@@ -142,5 +152,17 @@ export async function initDatabaseSchema() {
   `;
 
   await dbExec(schemaSql);
+
+  // Safely add new columns if they do not exist
+  try {
+    await dbExec(`ALTER TABLE users ADD COLUMN reset_pin TEXT;`);
+  } catch (e) {}
+  try {
+    await dbExec(`ALTER TABLE users ADD COLUMN reset_pin_expires TEXT;`);
+  } catch (e) {}
+  try {
+    await dbExec(`ALTER TABLE complaints ADD COLUMN upvote_count INTEGER DEFAULT 1;`);
+  } catch (e) {}
+
   console.log('Database schema initialized successfully.');
 }

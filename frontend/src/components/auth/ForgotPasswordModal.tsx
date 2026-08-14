@@ -68,31 +68,34 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ onClos
         ) : step === 'email' ? (
           <form onSubmit={handleSendCode} className="space-y-4 text-xs">
             <div>
-              <label className="block text-slate-300 font-bold mb-1">Your Registered Email</label>
+              <label className="block text-slate-300 font-bold mb-1">Your Registered Gmail / Email</label>
               <input
                 type="email"
                 required
-                placeholder="student@campus.edu"
+                placeholder="student1@campus.edu"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-800 text-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-white focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <button type="submit" className="w-full py-2.5 rounded-xl bg-blue-600 font-extrabold text-xs">
-              Send Reset Code
+            <button type="submit" className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-extrabold text-xs shadow-lg shadow-blue-500/25 transition-all">
+              Send 6-Digit PIN to Gmail
             </button>
           </form>
         ) : (
           <form onSubmit={handleResetPassword} className="space-y-4 text-xs">
             <div>
-              <label className="block text-slate-300 font-bold mb-1">Reset Code (Demo: 123456)</label>
+              <label className="block text-slate-300 font-bold mb-1">
+                Enter 6-Digit PIN (Sent to your Gmail inbox)
+              </label>
               <input
                 type="text"
                 required
-                placeholder="123456"
+                maxLength={6}
+                placeholder="e.g. 482910"
                 value={resetCode}
                 onChange={e => setResetCode(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-800 text-white font-mono text-center tracking-widest text-sm"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-white font-mono text-center tracking-widest text-base font-black focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
@@ -100,14 +103,14 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ onClos
               <input
                 type="password"
                 required
-                placeholder="••••••••"
+                placeholder="Enter new password"
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-800 text-white"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-white focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <button type="submit" className="w-full py-2.5 rounded-xl bg-emerald-600 font-extrabold text-xs">
-              Reset Password Now
+            <button type="submit" className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-extrabold text-xs shadow-lg shadow-emerald-500/25 transition-all">
+              Verify PIN & Reset Password
             </button>
           </form>
         )}

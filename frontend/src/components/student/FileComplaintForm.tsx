@@ -594,28 +594,45 @@ const openFilePicker = () => {
               ))}
             </div>
 
-            <p className="text-xs text-slate-500 mb-6">
-              You may still proceed to file your complaint if this is a separate issue.
+            <p className="text-xs text-slate-500 mb-6 font-medium">
+              An active complaint for this issue has already been registered at this location. Rather than creating a duplicate ticket, please add your support to fast-track its maintenance priority.
             </p>
 
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowDuplicateModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 Review My Input
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDuplicateModal(false);
-                  handleSubmit(new Event('submit') as any);
-                }}
-                className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 text-white shadow-md"
-              >
-                Proceed & Submit Anyway
-              </button>
+              {duplicateMatches.length > 0 && (
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    const targetId = duplicateMatches[0].complaintId;
+                    setIsSubmitting(true);
+                    try {
+                      const res = await api.supportComplaint(targetId);
+                      if (res.success) {
+                        alert(`👍 Your support has been recorded for Complaint #${targetId}! Priority boosted.`);
+                        setShowDuplicateModal(false);
+                        onSuccess(targetId);
+                      } else {
+                        alert(res.message || 'Upvote failed.');
+                      }
+                    } catch (err: any) {
+                      alert(err.message || 'Failed to support complaint.');
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5"
+                >
+                  👍 Support / Upvote Existing Complaint
+                </button>
+              )}
             </div>
           </div>
         </div>

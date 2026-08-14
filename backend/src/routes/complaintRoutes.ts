@@ -10,6 +10,7 @@ import {
   detectDuplicatesAndSimilar,
   suggestResolution
 } from '../services/aiService';
+import { sendNotificationEmail } from '../utils/emailService';
 
 const router = Router();
 
@@ -684,6 +685,69 @@ router.post('/duplicates/merge', authenticateToken, requireRole(['admin']), asyn
     }
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Upvote / Support Existing Complaint
+router.post('/:id/support', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const complaintId = req.params.id;
+    const userId = req.user!.id;
+
+    const complaint = await dbGet<any>('SELECT * FROM complaints WHERE id = ?', [complaintId]);
+    if (!complaint) {
+      return res.status(404).json({ success: false, message: 'Complaint not found.' });
+    }
+
+    // Check if user already supported
+    const existing = await dbGet('SELECT id FROM complaint_supports WHERE complaint_id = ? AND user_id = ?', [complaintId, userId]);
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'You have already supported this complaint.' });
+    }
+
+    const now = new Date().toISOString();
+
+    // Record support upvote
+    await dbRun('INSERT INTO complaint_supports (complaint_id, user_id, created_at) VALUES (?, ?, ?)', [complaintId, userId, now]);
+
+    // Calculate new upvote count & boosted urgency score (+8 per upvote)
+    const newUpvotes = (complaint.upvote_count || 1) + 1;
+    let newUrgency = Math.min(100, (complaint.urgency_score || 50) + 8);
+    let newPriority = complaint.priority;
+
+    if (newUrgency >= 80) newPriority = 'critical';
+    else if (newUrgency >= 65) newPriority = 'high';
+
+    await dbRun(
+      'UPDATE complaints SET upvote_count = ?, urgency_score = ?, priority = ?, updated_at = ? WHERE id = ?',
+      [newUpvotes, newUrgency, newPriority, now, complaintId]
+    );
+
+    // Add status history entry
+    await dbRun(
+      `INSERT INTO complaint_status_history (complaint_id, from_status, to_status, changed_by, comment, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [complaintId, complaint.status, complaint.status, userId, `Upvoted & supported by student ${req.user!.full_name} (${newUpvotes} total supporters)`, now]
+    );
+
+    // Notify assigned staff if assigned
+    if (complaint.assigned_to) {
+      const staffUser = await dbGet<any>('SELECT email FROM users WHERE id = ?', [complaint.assigned_to]);
+      if (staffUser && staffUser.email) {
+        sendNotificationEmail(staffUser.email, `👍 Complaint Upvoted: ${complaint.title}`, `Student ${req.user!.full_name} supported complaint ${complaintId}. Total supporters: ${newUpvotes}. Priority boosted to ${newPriority.toUpperCase()}.`).catch(() => {});
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Your support has been added to Complaint #${complaintId}. Total supporters: ${newUpvotes}.`,
+      upvote_count: newUpvotes,
+      urgency_score: newUrgency,
+      priority: newPriority
+    });
+  } catch (error: any) {
+    console.error('Support complaint error:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Error processing support upvote.' });
   }
 });
 

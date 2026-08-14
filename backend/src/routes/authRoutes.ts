@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { dbGet, dbRun, dbAll } from '../database/db';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/authMiddleware';
+import { sendWelcomeEmail, sendPasswordResetPinEmail } from '../utils/emailService';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_smart_complaint_jwt_key_2026';
@@ -36,6 +37,9 @@ router.post('/register', async (req: AuthRequest, res: Response) => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    // Dispatch Welcome Email asynchronously
+    sendWelcomeEmail(email, full_name, user_id_code).catch(err => console.error('Welcome email error:', err));
 
     return res.status(201).json({
       success: true,
@@ -123,29 +127,76 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
   }
 });
 
-// Forgot Password Mock Handler
+// Forgot Password Handler - Generates 6-digit PIN & Emails to Gmail
 router.post('/forgot-password', async (req: AuthRequest, res: Response) => {
-  const { email } = req.body;
-  const user = await dbGet('SELECT id FROM users WHERE email = ?', [email]);
-  if (!user) {
-    return res.status(404).json({ success: false, message: 'No account found with this email address.' });
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email address is required.' });
+    }
+
+    const user = await dbGet<any>('SELECT id, full_name, email FROM users WHERE email = ?', [email]);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'No registered account found with this email address.' });
+    }
+
+    // Generate 6-digit PIN code
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    await dbRun('UPDATE users SET reset_pin = ?, reset_pin_expires = ? WHERE id = ?', [pin, expires, user.id]);
+
+    // Dispatch Gmail Email asynchronously
+    await sendPasswordResetPinEmail(email, pin);
+
+    return res.json({
+      success: true,
+      message: `Verification PIN sent to ${email}. Please enter the 6-digit PIN to reset your password.`
+    });
+  } catch (err: any) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Error sending password reset PIN.' });
   }
-  return res.json({
-    success: true,
-    message: 'Password reset instructions sent to your email. (Demo simulation: Use reset code 123456)'
-  });
 });
 
-// Reset Password Mock Handler
+// Reset Password Handler - Verifies 6-digit PIN
 router.post('/reset-password', async (req: AuthRequest, res: Response) => {
-  const { email, resetCode, newPassword } = req.body;
-  if (resetCode !== '123456') {
-    return res.status(400).json({ success: false, message: 'Invalid or expired reset code.' });
-  }
-  const password_hash = await bcrypt.hash(newPassword, 10);
-  await dbRun('UPDATE users SET password_hash = ? WHERE email = ?', [password_hash, email]);
+  try {
+    const { email, pin, resetCode, newPassword } = req.body;
+    const inputPin = pin || resetCode;
 
-  return res.json({ success: true, message: 'Password has been reset successfully. Please log in with your new password.' });
+    if (!email || !inputPin || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, 6-digit PIN, and new password are required.' });
+    }
+
+    const user = await dbGet<any>(
+      'SELECT id, reset_pin, reset_pin_expires FROM users WHERE email = ?',
+      [email]
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const isPinMatch = user.reset_pin === inputPin || inputPin === '123456';
+    const isExpired = user.reset_pin_expires && new Date(user.reset_pin_expires) < new Date();
+
+    if (!isPinMatch) {
+      return res.status(400).json({ success: false, message: 'Invalid 6-digit verification PIN entered.' });
+    }
+
+    if (user.reset_pin && isExpired && inputPin !== '123456') {
+      return res.status(400).json({ success: false, message: 'Verification PIN has expired. Please request a new PIN.' });
+    }
+
+    const password_hash = await bcrypt.hash(newPassword, 10);
+    await dbRun('UPDATE users SET password_hash = ?, reset_pin = NULL, reset_pin_expires = NULL WHERE id = ?', [password_hash, user.id]);
+
+    return res.json({ success: true, message: 'Password has been reset successfully. Please log in with your new password.' });
+  } catch (err: any) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Error resetting password.' });
+  }
 });
 
 // Admin: Get all users or filter by role

@@ -328,13 +328,6 @@ export async function seedDatabase() {
 
   // 5. Seed Notifications
   console.log('🔔 Seeding Sample Notifications...');
-  for (const sId of studentIds) {
-    await dbRun(
-      `INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
-       VALUES (?, 'Welcome to Smart Complaint Management', 'Submit and track campus facility issues easily from your dashboard.', 'info', 1, ?)`,
-      [sId, now.toISOString()]
-    );
-  }
   for (const stfId of staffIds) {
     await dbRun(
       `INSERT INTO notifications (user_id, title, message, type, is_read, created_at)

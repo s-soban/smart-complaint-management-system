@@ -24,13 +24,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onOpen
     }
   };
 
-  const handleDemoClick = async (role: Role) => {
+  const handleDemoClick = (targetRole: Role) => {
     setErrorMsg('');
-    try {
-      await quickDemoLogin(role);
-    } catch (err: any) {
-      setErrorMsg('Demo login failed');
-    }
+    let demoEmail = 'student1@campus.edu';
+    if (targetRole === 'maintenance') demoEmail = 'staff1@campus.edu';
+    if (targetRole === 'admin') demoEmail = 'admin@campus.edu';
+
+    setIdentifier(demoEmail);
+    setPassword('password123');
   };
 
   return (

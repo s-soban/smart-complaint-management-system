@@ -69,6 +69,7 @@ export const api = {
   updatePriority: (id: string, payload: any) => apiRequest(`/complaints/${id}/priority`, { method: 'PATCH', body: JSON.stringify(payload) }),
   addComment: (id: string, text: string, isInternal: boolean = false) => apiRequest(`/complaints/${id}/comments`, { method: 'POST', body: JSON.stringify({ comment_text: text, is_internal: isInternal ? 1 : 0 }) }),
   handleDuplicate: (payload: any) => apiRequest('/complaints/duplicates/merge', { method: 'POST', body: JSON.stringify(payload) }),
+  supportComplaint: (id: string) => apiRequest(`/complaints/${id}/support`, { method: 'POST' }),
 
   // Campus & Analytics
   getBuildings: () => apiRequest('/campus/buildings'),
