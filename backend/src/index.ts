@@ -33,7 +33,15 @@ app.use('/uploads', (req, res) => {
   if (fs.existsSync(fallbackSvg)) {
     return res.sendFile(fallbackSvg);
   }
-  return res.status(404).json({ success: false, message: 'Upload asset not found.' });
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.send(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+    <rect width="600" height="400" fill="#0F172A"/>
+    <rect x="40" y="40" width="520" height="320" rx="20" fill="#1E293B" stroke="#334155" stroke-width="3"/>
+    <circle cx="300" cy="170" r="50" fill="#3B82F6" opacity="0.2"/>
+    <path d="M 280 170 L 320 170 M 300 150 L 300 190" stroke="#3B82F6" stroke-width="6" stroke-linecap="round"/>
+    <text x="50%" y="250" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" font-weight="bold" fill="#F8FAFC">Photo Evidence Uploaded</text>
+    <text x="50%" y="290" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" fill="#94A3B8">Smart Complaint Management System</text>
+  </svg>`);
 });
 
 // API Routes

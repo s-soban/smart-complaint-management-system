@@ -741,7 +741,7 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
       {/* In-App Lightbox Photo Viewer */}
       {activeLightboxImage && (
         <div
-          className="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
           onClick={() => setActiveLightboxImage(null)}
         >
           <div
@@ -749,37 +749,40 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 bg-slate-900/90 flex items-center justify-between border-b border-slate-800">
-              <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-blue-400" /> Photo Evidence View
+              <span className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-blue-400" /> Photo Evidence Detail
               </span>
               <div className="flex items-center gap-2">
                 <a
                   href={activeLightboxImage}
-                  download
+                  download={`complaint-evidence-${complaintId}.png`}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors"
+                  className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors shadow-md"
                 >
                   Download / Original
                 </a>
                 <button
                   onClick={() => setActiveLightboxImage(null)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-800 text-white"
+                  className="p-1.5 rounded-xl text-slate-400 hover:bg-slate-800 text-white transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="p-4 flex items-center justify-center bg-black/60 min-h-[300px] flex-1">
+            <div className="p-6 flex flex-col items-center justify-center bg-slate-950/90 min-h-[350px] flex-1">
               <img
                 src={activeLightboxImage}
                 alt="Full photo evidence"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/uploads/complaints/sample-before-1.svg';
+                  (e.target as HTMLImageElement).src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="%230F172A"/><rect x="40" y="40" width="520" height="320" rx="20" fill="%231E293B" stroke="%23334155" stroke-width="3"/><circle cx="300" cy="170" r="50" fill="%233B82F6" opacity="0.2"/><path d="M 280 170 L 320 170 M 300 150 L 300 190" stroke="%233B82F6" stroke-width="6" stroke-linecap="round"/><text x="50%25" y="250" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="%23F8FAFC">Photo Evidence Uploaded</text><text x="50%25" y="290" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="13" fill="%2394A3B8">Smart Complaint Management System</text></svg>`;
                 }}
-                className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-lg"
+                className="max-w-full max-h-[70vh] object-contain rounded-2xl shadow-2xl border border-slate-800/80 bg-slate-900"
               />
+              <p className="text-[11px] text-slate-400 mt-3 font-semibold">
+                Photo Evidence for Complaint #{complaintId}
+              </p>
             </div>
           </div>
         </div>
