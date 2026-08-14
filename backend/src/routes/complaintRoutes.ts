@@ -400,17 +400,15 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
       ORDER BY cc.created_at ASC
     `, [complaintId]);
 
-    // Fetch duplicate matches if admin
+    // Fetch duplicate matches for admin or submitter
     let duplicates: any[] = [];
-    if (req.user!.role === 'admin') {
-      duplicates = await dbAll<any>(`
-        SELECT dm.*, c_target.title as target_title, c_target.status as target_status, c_target.room_area as target_room, b.name as target_building
-        FROM duplicate_matches dm
-        JOIN complaints c_target ON dm.target_complaint_id = c_target.id
-        JOIN buildings b ON c_target.building_id = b.id
-        WHERE dm.source_complaint_id = ? OR dm.target_complaint_id = ?
-      `, [complaintId, complaintId]);
-    }
+    duplicates = await dbAll<any>(`
+      SELECT dm.*, c_target.title as target_title, c_target.status as target_status, c_target.room_area as target_room, c_target.upvote_count as target_upvote_count, b.name as target_building
+      FROM duplicate_matches dm
+      JOIN complaints c_target ON dm.target_complaint_id = c_target.id
+      JOIN buildings b ON c_target.building_id = b.id
+      WHERE dm.source_complaint_id = ? OR dm.target_complaint_id = ?
+    `, [complaintId, complaintId]);
 
     // Suggested resolution preview
     const suggestedFix = suggestResolution(complaint.title, complaint.description, complaint.category_name);
@@ -658,6 +656,23 @@ router.post('/duplicates/merge', authenticateToken, requireRole(['admin']), asyn
     const now = new Date().toISOString();
 
     if (action === 'merge') {
+      // Fetch upvote counts to aggregate
+      const master = await dbGet<any>('SELECT upvote_count, urgency_score, priority FROM complaints WHERE id = ?', [master_complaint_id]);
+      const dup = await dbGet<any>('SELECT upvote_count FROM complaints WHERE id = ?', [duplicate_complaint_id]);
+
+      if (master && dup) {
+        const mergedUpvotes = (master.upvote_count || 1) + (dup.upvote_count || 1);
+        const newUrgency = Math.min(100, (master.urgency_score || 50) + (dup.upvote_count || 1) * 8);
+        let newPriority = master.priority;
+        if (newUrgency >= 80) newPriority = 'critical';
+        else if (newUrgency >= 65) newPriority = 'high';
+
+        await dbRun(
+          'UPDATE complaints SET upvote_count = ?, urgency_score = ?, priority = ?, updated_at = ? WHERE id = ?',
+          [mergedUpvotes, newUrgency, newPriority, now, master_complaint_id]
+        );
+      }
+
       // Mark duplicate complaint as duplicate of master and close it
       await dbRun(
         `UPDATE complaints SET status = 'closed', is_duplicate_of = ?, resolution_summary = ?, updated_at = ? WHERE id = ?`,
@@ -675,7 +690,7 @@ router.post('/duplicates/merge', authenticateToken, requireRole(['admin']), asyn
         [duplicate_complaint_id, req.user!.id, `Merged into duplicate master complaint ${master_complaint_id}`, now]
       );
 
-      return res.json({ success: true, message: `Complaint ${duplicate_complaint_id} merged into ${master_complaint_id}.` });
+      return res.json({ success: true, message: `Complaint ${duplicate_complaint_id} merged into ${master_complaint_id}. Upvotes consolidated.` });
     } else {
       await dbRun(
         `UPDATE duplicate_matches SET status = ? WHERE (source_complaint_id = ? AND target_complaint_id = ?) OR (source_complaint_id = ? AND target_complaint_id = ?)`,

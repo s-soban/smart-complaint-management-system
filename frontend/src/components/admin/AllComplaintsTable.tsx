@@ -200,6 +200,7 @@ export const AllComplaintsTable: React.FC<AllComplaintsTableProps> = ({ onSelect
                   <th className="py-3 px-4">Priority & Urgency</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Assigned Staff</th>
+                  <th className="py-3 px-4 text-center">Upvotes</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -239,7 +240,26 @@ export const AllComplaintsTable: React.FC<AllComplaintsTableProps> = ({ onSelect
                         <span className="text-amber-500 text-[11px] italic">Unassigned</span>
                       )}
                     </td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-extrabold px-2 py-0.5 rounded-full text-[11px] border border-blue-200 dark:border-blue-800">
+                        👍 {c.upvote_count || 1}
+                      </span>
+                    </td>
                     <td className="py-3 px-4 text-right space-x-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await api.supportComplaint(c.id);
+                            if (res.success) fetchComplaints();
+                          } catch (e: any) {
+                            alert(e.message || 'Error supporting complaint');
+                          }
+                        }}
+                        className="px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-[10px] shadow-sm"
+                        title="Upvote complaint"
+                      >
+                        👍 Upvote
+                      </button>
                       <button
                         onClick={() => {
                           setAssignTargetId(c.id);

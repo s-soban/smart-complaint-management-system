@@ -31,6 +31,18 @@ export const DuplicateManager: React.FC<DuplicateManagerProps> = ({ onSelectComp
     }
   };
 
+  const handleUpvote = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const res = await api.supportComplaint(id);
+      if (res.success) {
+        fetchDuplicates();
+      }
+    } catch (err: any) {
+      alert(err.message || 'Already upvoted');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Banner */}
@@ -43,7 +55,7 @@ export const DuplicateManager: React.FC<DuplicateManagerProps> = ({ onSelectComp
             <Copy className="w-5 h-5" /> Duplicate & Similar Complaint Workstation
           </h2>
           <p className="text-amber-100 text-xs mt-1">
-            Detect semantically identical complaints across campus, merge redundant reports, or mark as separate incidents.
+            Detect semantically identical complaints across campus, view upvotes, merge redundant reports, or mark as separate incidents.
           </p>
         </div>
       </div>
@@ -52,9 +64,9 @@ export const DuplicateManager: React.FC<DuplicateManagerProps> = ({ onSelectComp
       <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3">
         <Sparkles className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
         <div>
-          <h4 className="font-extrabold text-sm mb-1">How AI Duplicate Detection Works</h4>
+          <h4 className="font-extrabold text-sm mb-1">How AI Duplicate & Upvoting Works</h4>
           <p className="leading-relaxed">
-            When a new complaint is filed, the system performs a multi-dimensional comparison across NLP description TF-IDF text similarity, category matches, and geographical proximity (Building & Room ID). The administrator maintains complete authority to merge or separate complaints without data loss.
+            When complaints are filed, similar issues are detected via AI description matching & room locations. Admins can view upvotes, support/upvote duplicate complaints directly to raise priority, or merge duplicates to combine community upvotes into a single master complaint.
           </p>
         </div>
       </div>
@@ -79,6 +91,7 @@ export const DuplicateManager: React.FC<DuplicateManagerProps> = ({ onSelectComp
                   <th className="py-3 px-4">Location</th>
                   <th className="py-3 px-4">Duplicate Status</th>
                   <th className="py-3 px-4">Master Reference</th>
+                  <th className="py-3 px-4 text-center">Community Upvotes</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -114,10 +127,22 @@ export const DuplicateManager: React.FC<DuplicateManagerProps> = ({ onSelectComp
                         <span className="text-slate-400">-</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 text-center">
+                      <div className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-full font-black text-xs border border-indigo-200 dark:border-indigo-800">
+                        👍 {c.upvote_count || 1}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-right space-x-2">
+                      <button
+                        onClick={(e) => handleUpvote(c.id, e)}
+                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-[11px] transition-colors shadow-sm"
+                        title="Upvote / Support this duplicate complaint"
+                      >
+                        👍 Upvote
+                      </button>
                       <button
                         onClick={() => onSelectComplaint(c.id)}
-                        className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-[11px]"
+                        className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-[11px] hover:bg-slate-200"
                       >
                         Inspect →
                       </button>

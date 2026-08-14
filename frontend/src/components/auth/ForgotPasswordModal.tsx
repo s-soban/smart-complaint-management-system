@@ -10,6 +10,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ onClos
   const [email, setEmail] = useState('');
   const [step, setStep] = useState<'email' | 'reset'>('email');
   const [resetCode, setResetCode] = useState('');
+  const [generatedPin, setGeneratedPin] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [msg, setMsg] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
@@ -20,6 +21,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ onClos
       const res = await api.forgotPassword(email);
       if (res.success) {
         setMsg(res.message);
+        if (res.pin) setGeneratedPin(res.pin);
         setStep('reset');
       }
     } catch (err: any) {
@@ -84,9 +86,23 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ onClos
           </form>
         ) : (
           <form onSubmit={handleResetPassword} className="space-y-4 text-xs">
+            {generatedPin && (
+              <div className="p-3.5 rounded-2xl bg-blue-950/80 border border-blue-700/80 text-blue-200 text-xs space-y-1 shadow-lg">
+                <div className="flex items-center justify-between font-extrabold text-blue-300">
+                  <span className="flex items-center gap-1.5"><Mail className="w-4 h-4 text-blue-400" /> Verification PIN Sent</span>
+                  <span className="font-mono text-sm font-black text-amber-300 bg-amber-950/90 px-2 py-0.5 rounded border border-amber-500/50 shadow">
+                    {generatedPin}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Enter the 6-digit PIN code displayed above or check your Gmail inbox ({email}).
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="block text-slate-300 font-bold mb-1">
-                Enter 6-Digit PIN (Sent to your Gmail inbox)
+                Enter 6-Digit PIN
               </label>
               <input
                 type="text"

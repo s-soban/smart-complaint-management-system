@@ -50,32 +50,35 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onOpen
           <p className="text-xs text-slate-400">Smart Complaint & Infrastructure Management System</p>
         </div>
 
-        {/* 1-Click Quick Demo Persona Switcher */}
-        <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-2">
-          <span className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider block text-center">
-            ⚡ Quick Demo Persona Login
+        {/* Demo Persona Credentials Reference Card */}
+        <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-2.5">
+          <span className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider block text-center flex items-center justify-center gap-1.5">
+            <KeyRound className="w-3.5 h-3.5 text-blue-400" /> Click any persona below to fill fields:
           </span>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-1.5 text-[11px]">
             <button
               type="button"
               onClick={() => handleDemoClick('student')}
-              className="py-2 px-1 rounded-xl bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 border border-blue-500/30 text-[11px] font-bold transition-all flex flex-col items-center gap-1"
+              className="w-full flex items-center justify-between p-2 rounded-xl bg-blue-950/40 border border-blue-800/40 text-blue-300 hover:bg-blue-900/50 transition-colors text-left"
             >
-              <GraduationCap className="w-4 h-4" /> Student
+              <span className="font-bold flex items-center gap-1"><GraduationCap className="w-3.5 h-3.5" /> Student Persona</span>
+              <span className="font-mono text-[10px] bg-blue-900/60 px-2 py-0.5 rounded text-blue-200 font-extrabold">Fill Student →</span>
             </button>
             <button
               type="button"
               onClick={() => handleDemoClick('maintenance')}
-              className="py-2 px-1 rounded-xl bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 border border-amber-500/30 text-[11px] font-bold transition-all flex flex-col items-center gap-1"
+              className="w-full flex items-center justify-between p-2 rounded-xl bg-amber-950/40 border border-amber-800/40 text-amber-300 hover:bg-amber-900/50 transition-colors text-left"
             >
-              <Wrench className="w-4 h-4" /> Maintenance
+              <span className="font-bold flex items-center gap-1"><Wrench className="w-3.5 h-3.5" /> Maintenance Persona</span>
+              <span className="font-mono text-[10px] bg-amber-900/60 px-2 py-0.5 rounded text-amber-200 font-extrabold">Fill Staff →</span>
             </button>
             <button
               type="button"
               onClick={() => handleDemoClick('admin')}
-              className="py-2 px-1 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold transition-all flex flex-col items-center gap-1"
+              className="w-full flex items-center justify-between p-2 rounded-xl bg-indigo-950/40 border border-indigo-800/40 text-indigo-300 hover:bg-indigo-900/50 transition-colors text-left"
             >
-              <ShieldCheck className="w-4 h-4" /> Admin
+              <span className="font-bold flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> Admin Persona</span>
+              <span className="font-mono text-[10px] bg-indigo-900/60 px-2 py-0.5 rounded text-indigo-200 font-extrabold">Fill Admin →</span>
             </button>
           </div>
         </div>

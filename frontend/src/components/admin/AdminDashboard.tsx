@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { AnalyticsKPIs } from '../../types';
-import { ShieldAlert, CheckCircle2, Clock, Wrench, AlertTriangle, TrendingUp, Building2, BarChart3, ArrowUpRight } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, Wrench, AlertTriangle, TrendingUp, Building2, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
+import { StatusDonutChart, CategoryBarChart } from '../common/DashboardCharts';
 
 interface AdminDashboardProps {
   onNavigateTab: (tab: string) => void;
@@ -37,6 +38,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab, o
       </div>
     );
   }
+
+  // Format data for Status Donut Pie Chart
+  const statusPieData = chartsData?.byStatus?.map((item: any) => ({
+    label: item.status.replace(/_/g, ' ').toUpperCase(),
+    value: item.count
+  })) || [
+    { label: 'NEW / SUBMITTED', value: kpis.newSubmitted || 1, color: '#3b82f6' },
+    { label: 'RESOLVED', value: kpis.resolvedTotal || 1, color: '#10b981' },
+    { label: 'CRITICAL ACTIVE', value: kpis.criticalActive || 1, color: '#f43f5e' },
+  ];
+
+  const categoryBarData = chartsData?.byCategory?.map((item: any) => ({
+    label: item.name,
+    value: item.count
+  })) || [];
+
+  const buildingBarData = chartsData?.byBuilding?.map((item: any) => ({
+    label: item.building_name,
+    value: item.count,
+    subText: item.critical_count > 0 ? `${item.critical_count} Critical` : undefined,
+    highlight: item.critical_count > 0
+  })) || [];
 
   return (
     <div className="space-y-6">
@@ -115,77 +138,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateTab, o
         </div>
       </div>
 
-      {/* Visual Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Category Breakdown Bar Chart */}
+      {/* Visual Charts Grid (Interactive Donut & Bar Graphs) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Status Distribution Donut / Pie Chart */}
         <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">
-              Complaints by Category Breakdown
-            </h3>
-            <span className="text-xs text-slate-400 font-mono">Volume</span>
-          </div>
-
-          <div className="space-y-3">
-            {chartsData?.byCategory?.map((item: any) => {
-              const maxVal = Math.max(...(chartsData.byCategory.map((c: any) => c.count) || [1]));
-              const pct = Math.round((item.count / maxVal) * 100);
-
-              return (
-                <div key={item.name} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-700 dark:text-slate-300">{item.name}</span>
-                    <span className="text-slate-900 dark:text-white font-mono">{item.count}</span>
-                  </div>
-                  <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <StatusDonutChart
+            data={statusPieData}
+            title="Complaint Status Pie Chart"
+            centerLabel="Complaints"
+            size={180}
+          />
         </div>
 
-        {/* Building Hotspots Chart */}
+        {/* Category Breakdown Bar Graph */}
         <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">
-              Campus Building Defect Hotspots
-            </h3>
-            <span className="text-xs text-slate-400 font-mono">Building Load</span>
-          </div>
+          <CategoryBarChart
+            data={categoryBarData}
+            title="Complaints by Category Bar Graph"
+            subtitle="Breakdown by defect classification"
+            barColorGradient="from-blue-600 to-indigo-600"
+          />
+        </div>
 
-          <div className="space-y-3">
-            {chartsData?.byBuilding?.map((item: any) => {
-              const maxVal = Math.max(...(chartsData.byBuilding.map((c: any) => c.count) || [1]));
-              const pct = Math.round((item.count / maxVal) * 100);
-
-              return (
-                <div key={item.building_name} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-700 dark:text-slate-300">{item.building_name}</span>
-                    <div className="flex items-center gap-2">
-                      {item.critical_count > 0 && (
-                        <span className="text-[10px] font-black text-rose-500 bg-rose-50 dark:bg-rose-950/60 px-1.5 py-0.5 rounded">
-                          {item.critical_count} Critical
-                        </span>
-                      )}
-                      <span className="text-slate-900 dark:text-white font-mono">{item.count} issues</span>
-                    </div>
-                  </div>
-                  <div className="w-full h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 transition-all duration-500"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        {/* Building Hotspots Bar Graph */}
+        <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <CategoryBarChart
+            data={buildingBarData}
+            title="Campus Building Hotspots Graph"
+            subtitle="Load distribution across facilities"
+            barColorGradient="from-purple-600 to-indigo-600"
+          />
         </div>
       </div>
 

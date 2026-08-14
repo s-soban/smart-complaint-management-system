@@ -384,22 +384,61 @@ const openFilePicker = () => {
               </div>
 
               {aiAnalysis && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block font-medium">Suggested Category:</span>
-                    <span className="font-extrabold text-slate-900 dark:text-white text-sm">
-                      {aiAnalysis.categoryPrediction?.categoryName} ({aiAnalysis.categoryPrediction?.confidence}% confidence)
-                    </span>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{aiAnalysis.categoryPrediction?.reasoning}</p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400 block font-medium">Suggested Category:</span>
+                      <span className="font-extrabold text-slate-900 dark:text-white text-sm">
+                        {aiAnalysis.categoryPrediction?.categoryName} ({aiAnalysis.categoryPrediction?.confidence}% confidence)
+                      </span>
+                      <p className="text-[11px] text-slate-500 mt-0.5">{aiAnalysis.categoryPrediction?.reasoning}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400 block font-medium">Predicted Priority & Urgency:</span>
+                      <PriorityBadge
+                        priority={aiAnalysis.priorityUrgency?.priority}
+                        urgencyScore={aiAnalysis.priorityUrgency?.urgencyScore}
+                      />
+                      <p className="text-[11px] text-slate-500 mt-0.5">{aiAnalysis.priorityUrgency?.reason}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-500 dark:text-slate-400 block font-medium">Predicted Priority & Urgency:</span>
-                    <PriorityBadge
-                      priority={aiAnalysis.priorityUrgency?.priority}
-                      urgencyScore={aiAnalysis.priorityUrgency?.urgencyScore}
-                    />
-                    <p className="text-[11px] text-slate-500 mt-0.5">{aiAnalysis.priorityUrgency?.reason}</p>
-                  </div>
+
+                  {aiAnalysis.duplicateMatches && aiAnalysis.duplicateMatches.length > 0 && (
+                    <div className="pt-3 border-t border-blue-200 dark:border-indigo-800/60">
+                      <span className="font-extrabold text-amber-700 dark:text-amber-300 block mb-2 text-xs flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4 text-amber-500" />
+                        Similar Active Complaints Found ({aiAnalysis.duplicateMatches.length} existing reports)
+                      </span>
+                      <div className="space-y-2">
+                        {aiAnalysis.duplicateMatches.map((dup: any) => (
+                          <div key={dup.complaintId} className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs gap-3">
+                            <div>
+                              <span className="font-bold text-slate-900 dark:text-white block">
+                                #{dup.complaintId} - {dup.title}
+                              </span>
+                              <span className="text-[11px] text-slate-500 block">
+                                📍 {dup.buildingName} - {dup.roomArea} | Priority: {dup.priority?.toUpperCase()}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await api.supportComplaint(dup.complaintId);
+                                  alert(`Successfully upvoted existing complaint #${dup.complaintId}! Urgency boosted.`);
+                                } catch (e: any) {
+                                  alert(e.message || 'Already upvoted');
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shrink-0 shadow-sm transition-all"
+                            >
+                              👍 Upvote Existing ({dup.upvote_count || 1})
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -3,32 +3,53 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Create transporter using environment variables or fallback SMTP configuration
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false, // true for 465, false for 587
-  auth: {
-    user: process.env.SMTP_USER || process.env.GMAIL_USER || '',
-    pass: process.env.SMTP_PASS || process.env.GMAIL_PASS || ''
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+/**
+ * Get configured Nodemailer transporter for Gmail / SMTP
+ */
+function getTransporter() {
+  const user = process.env.GMAIL_USER || process.env.SMTP_USER || '';
+  const pass = process.env.GMAIL_PASS || process.env.SMTP_PASS || '';
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = Number(process.env.SMTP_PORT) || 465;
 
-const SENDER = process.env.EMAIL_FROM || '"EduFix AI Smart Complaint System" <noreply@edufix.campus.edu>';
+  if (host.includes('gmail.com')) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+      tls: { rejectUnauthorized: false }
+    });
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false }
+  });
+}
+
+function getSenderEmail(): string {
+  const user = process.env.GMAIL_USER || process.env.SMTP_USER;
+  if (process.env.EMAIL_FROM) return process.env.EMAIL_FROM;
+  if (user) return `"EduFix AI Smart System" <${user}>`;
+  return '"EduFix AI Smart System" <noreply@edufix.campus.edu>';
+}
 
 /**
  * Send Welcome Email to newly registered user
  */
 export async function sendWelcomeEmail(toEmail: string, fullName: string, userIdCode: string) {
   try {
-    console.log(`📧 Sending Welcome Email to ${toEmail}...`);
-    if (!process.env.SMTP_USER && !process.env.GMAIL_USER) {
-      console.log(`ℹ️ [Email Simulation] Welcome email generated for ${toEmail} (${userIdCode}). Set SMTP_USER in .env to send real Gmail emails.`);
+    const user = process.env.GMAIL_USER || process.env.SMTP_USER;
+    const pass = process.env.GMAIL_PASS || process.env.SMTP_PASS;
+
+    if (!user || !pass) {
+      console.log(`ℹ️ [Email Simulation] Welcome email for ${toEmail} (${userIdCode}). Set GMAIL_USER & GMAIL_PASS in backend/.env to send real Gmail emails.`);
       return true;
     }
+
+    console.log(`📧 Sending Welcome Email to ${toEmail} via Gmail SMTP (${user})...`);
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0f172a; color: #ffffff; border-radius: 16px;">
@@ -58,8 +79,9 @@ export async function sendWelcomeEmail(toEmail: string, fullName: string, userId
       </div>
     `;
 
+    const transporter = getTransporter();
     await transporter.sendMail({
-      from: SENDER,
+      from: getSenderEmail(),
       to: toEmail,
       subject: '🎉 Welcome to EduFix AI Smart Complaint System',
       html: htmlContent
@@ -76,13 +98,17 @@ export async function sendWelcomeEmail(toEmail: string, fullName: string, userId
 /**
  * Send 6-digit Password Reset PIN to Gmail
  */
-export async function sendPasswordResetPinEmail(toEmail: string, pin: string) {
+export async function sendPasswordResetPinEmail(toEmail: string, pin: string): Promise<{ sent: boolean; isSimulated: boolean; error?: string }> {
   try {
-    console.log(`📧 Sending Password Reset PIN Email to ${toEmail}...`);
-    if (!process.env.SMTP_USER && !process.env.GMAIL_USER) {
-      console.log(`🔑 [Email Simulation] Password Reset PIN for ${toEmail} is: ${pin}. Set SMTP_USER in .env to send real Gmail emails.`);
-      return true;
+    const user = process.env.GMAIL_USER || process.env.SMTP_USER;
+    const pass = process.env.GMAIL_PASS || process.env.SMTP_PASS;
+
+    if (!user || !pass) {
+      console.log(`🔑 [Email Simulation] Password Reset PIN for ${toEmail} is: ${pin}. Set GMAIL_USER & GMAIL_PASS in backend/.env to send real emails.`);
+      return { sent: true, isSimulated: true };
     }
+
+    console.log(`📧 Sending Password Reset PIN Email to ${toEmail} via Gmail (${user})...`);
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0f172a; color: #ffffff; border-radius: 16px;">
@@ -97,7 +123,7 @@ export async function sendPasswordResetPinEmail(toEmail: string, pin: string) {
             We received a request to reset your password. Use the 6-digit PIN below to complete your reset request:
           </p>
 
-          <div style="display: inline-block; background-color: #1e293b; padding: 16px 36px; border-radius: 14px; margin: 20px 0; border: 2px stroke #3b82f6; letter-spacing: 8px; font-size: 32px; font-weight: 900; color: #38bdf8;">
+          <div style="display: inline-block; background-color: #1e293b; padding: 16px 36px; border-radius: 14px; margin: 20px 0; border: 2px solid #3b82f6; letter-spacing: 8px; font-size: 32px; font-weight: 900; color: #38bdf8;">
             ${pin}
           </div>
 
@@ -112,18 +138,19 @@ export async function sendPasswordResetPinEmail(toEmail: string, pin: string) {
       </div>
     `;
 
+    const transporter = getTransporter();
     await transporter.sendMail({
-      from: SENDER,
+      from: getSenderEmail(),
       to: toEmail,
       subject: `🔑 ${pin} - Your EduFix Password Reset PIN`,
       html: htmlContent
     });
 
     console.log(`✅ Password Reset PIN Email sent successfully to ${toEmail}`);
-    return true;
-  } catch (err) {
+    return { sent: true, isSimulated: false };
+  } catch (err: any) {
     console.error(`❌ Failed to send password reset PIN email to ${toEmail}:`, err);
-    return false;
+    return { sent: false, isSimulated: false, error: err.message || 'Gmail SMTP send failed.' };
   }
 }
 
@@ -133,11 +160,15 @@ export async function sendPasswordResetPinEmail(toEmail: string, pin: string) {
 export async function sendNotificationEmail(toEmail: string, title: string, message: string) {
   try {
     if (!toEmail) return false;
-    console.log(`📧 Sending Notification Email to ${toEmail}...`);
-    if (!process.env.SMTP_USER && !process.env.GMAIL_USER) {
+    const user = process.env.GMAIL_USER || process.env.SMTP_USER;
+    const pass = process.env.GMAIL_PASS || process.env.SMTP_PASS;
+
+    if (!user || !pass) {
       console.log(`🔔 [Email Simulation] Notification for ${toEmail}: "${title}" - ${message}`);
       return true;
     }
+
+    console.log(`📧 Sending Notification Email to ${toEmail}...`);
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0f172a; color: #ffffff; border-radius: 16px;">
@@ -160,8 +191,9 @@ export async function sendNotificationEmail(toEmail: string, title: string, mess
       </div>
     `;
 
+    const transporter = getTransporter();
     await transporter.sendMail({
-      from: SENDER,
+      from: getSenderEmail(),
       to: toEmail,
       subject: `🔔 EduFix Alert: ${title}`,
       html: htmlContent
@@ -173,3 +205,4 @@ export async function sendNotificationEmail(toEmail: string, title: string, mess
     return false;
   }
 }
+

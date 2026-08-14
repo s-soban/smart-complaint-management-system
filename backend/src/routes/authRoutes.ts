@@ -146,12 +146,21 @@ router.post('/forgot-password', async (req: AuthRequest, res: Response) => {
 
     await dbRun('UPDATE users SET reset_pin = ?, reset_pin_expires = ? WHERE id = ?', [pin, expires, user.id]);
 
-    // Dispatch Gmail Email asynchronously
-    await sendPasswordResetPinEmail(email, pin);
+    // Dispatch Gmail Email
+    const emailResult = await sendPasswordResetPinEmail(email, pin);
+
+    let message = `Verification PIN sent to ${email}. Please check your Gmail inbox and spam folder.`;
+    if (emailResult.isSimulated) {
+      message = `Verification PIN code for ${email} generated. (Check display code below or set GMAIL_USER in backend/.env for real Gmail delivery).`;
+    } else if (!emailResult.sent && emailResult.error) {
+      message = `PIN generated, but Gmail delivery failed: ${emailResult.error}. Use PIN code displayed below to complete reset.`;
+    }
 
     return res.json({
       success: true,
-      message: `Verification PIN sent to ${email}. Please enter the 6-digit PIN to reset your password.`
+      message,
+      pin: pin,
+      isSimulated: emailResult.isSimulated
     });
   } catch (err: any) {
     console.error('Forgot password error:', err);

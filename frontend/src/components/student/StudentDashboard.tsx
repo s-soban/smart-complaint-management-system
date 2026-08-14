@@ -4,6 +4,7 @@ import { Complaint } from '../../types';
 import { StatusBadge } from '../common/StatusBadge';
 import { PriorityBadge } from '../common/PriorityBadge';
 import { PlusCircle, Clock, CheckCircle2, AlertCircle, XCircle, FileText, Search } from 'lucide-react';
+import { StatusDonutChart, CategoryBarChart } from '../common/DashboardCharts';
 
 interface StudentDashboardProps {
   onFileNewComplaint: () => void;
@@ -117,6 +118,40 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onFileNewCom
         </div>
       </div>
 
+      {/* Visual Analytics Charts Section */}
+      {complaints.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <StatusDonutChart
+              data={[
+                { label: 'Pending Review', value: pending, color: '#f59e0b' },
+                { label: 'In Progress', value: inProgress, color: '#06b6d4' },
+                { label: 'Resolved', value: resolved, color: '#10b981' },
+                { label: 'Rejected', value: rejected, color: '#f43f5e' },
+              ].filter(d => d.value > 0)}
+              title="My Complaints Status Pie Chart"
+              centerLabel="My Issues"
+              size={170}
+            />
+          </div>
+
+          <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <CategoryBarChart
+              data={Object.entries(
+                complaints.reduce((acc, c) => {
+                  const name = c.category_name || 'General';
+                  acc[name] = (acc[name] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>)
+              ).map(([label, value]) => ({ label, value }))}
+              title="Complaints by Category Bar Graph"
+              subtitle="Breakdown of submitted defect types"
+              barColorGradient="from-blue-600 to-indigo-600"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Complaints Table Section */}
       <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
         {/* Controls */}
@@ -176,6 +211,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onFileNewCom
                   <th className="py-3 px-4">Location</th>
                   <th className="py-3 px-4">Priority & Urgency</th>
                   <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-center">Community Support</th>
                   <th className="py-3 px-4">Submitted Date</th>
                   <th className="py-3 px-4 text-right">Action</th>
                 </tr>
@@ -205,6 +241,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onFileNewCom
                     </td>
                     <td className="py-3 px-4">
                       <StatusBadge status={c.status} size="sm" />
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="inline-flex items-center gap-1 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-black text-xs px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
+                        👍 {c.upvote_count || 1}
+                      </span>
                     </td>
                     <td className="py-3 px-4 text-slate-400">
                       {new Date(c.created_at).toLocaleDateString()}

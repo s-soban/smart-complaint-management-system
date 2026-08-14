@@ -247,6 +247,19 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
     );
   }
 
+  const handleUpvoteComplaint = async (targetId?: string) => {
+    const idToUpvote = targetId || complaintId;
+    try {
+      const res = await api.supportComplaint(idToUpvote);
+      if (res.success) {
+        fetchDetails();
+        if (onRefresh) onRefresh();
+      }
+    } catch (err: any) {
+      alert(err.message || 'Already upvoted or error supporting complaint.');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-800 transition-colors overflow-hidden">
@@ -265,9 +278,18 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
             </h2>
           </div>
 
-          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800">
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleUpvoteComplaint(complaint.id)}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition-all"
+              title="Upvote to boost priority"
+            >
+              👍 Support & Upvote ({complaint.upvote_count || 1})
+            </button>
+            <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Scrollable Body */}
@@ -486,31 +508,44 @@ export const ComplaintDetailModal: React.FC<ComplaintDetailModalProps> = ({ comp
                   </span>
                   <div className="space-y-2">
                     {duplicates.map(d => (
-                      <div key={d.id} className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                      <div key={d.id} className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
                         <div>
-                          <span className="font-bold text-slate-900 dark:text-white">
-                            Match: {d.target_title || d.target_complaint_id} ({d.similarity_score}% similarity)
+                          <span className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            Match: {d.target_title || d.target_complaint_id}
+                            <span className="px-2 py-0.5 rounded bg-blue-950 text-blue-300 font-mono text-[10px] font-bold">
+                              👍 {d.target_upvote_count || 1} upvotes
+                            </span>
+                            <span className="text-amber-500 font-bold text-[10px]">({d.similarity_score}% similarity)</span>
                           </span>
-                          <span className="block text-[10px] text-slate-400">
+                          <span className="block text-[10px] text-slate-400 mt-0.5">
                             Location: {d.target_building} - {d.target_room} | Status: {d.status}
                           </span>
                         </div>
-                        {d.status === 'pending' && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleMergeDuplicate(d.target_complaint_id, 'merge')}
-                              className="px-2.5 py-1 rounded-lg bg-amber-600 text-white font-bold text-[10px]"
-                            >
-                              Merge
-                            </button>
-                            <button
-                              onClick={() => handleMergeDuplicate(d.target_complaint_id, 'separate')}
-                              className="px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[10px]"
-                            >
-                              Mark Separate
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleUpvoteComplaint(d.target_complaint_id)}
+                            className="px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-[10px] shadow-sm"
+                            title="Upvote this duplicate complaint"
+                          >
+                            👍 Upvote
+                          </button>
+                          {d.status === 'pending' && role === 'admin' && (
+                            <>
+                              <button
+                                onClick={() => handleMergeDuplicate(d.target_complaint_id, 'merge')}
+                                className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-[10px]"
+                              >
+                                Merge
+                              </button>
+                              <button
+                                onClick={() => handleMergeDuplicate(d.target_complaint_id, 'separate')}
+                                className="px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[10px]"
+                              >
+                                Separate
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -83,6 +83,7 @@ export interface DuplicateMatch {
   target_status?: Status;
   target_building?: string;
   target_room?: string;
+  target_upvote_count?: number;
   similarity_score: number;
   status: 'pending' | 'merged' | 'separated' | 'ignored';
   created_at: string;
@@ -118,6 +119,7 @@ export interface Complaint {
   assignee_email?: string;
   assignee_phone?: string;
   is_duplicate_of?: string;
+  upvote_count?: number;
   resolution_summary?: string;
   resolved_at?: string;
   closed_at?: string;

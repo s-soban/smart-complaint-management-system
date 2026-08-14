@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (identifier: string, password?: string) => {
     setIsLoading(true);
     try {
-      const data = await api.login({ identifier, password: password || 'password123' });
+      const data = await api.login({ identifier, password });
       if (data.success && data.token && data.user) {
         localStorage.setItem('smart_complaint_token', data.token);
         setToken(data.token);
