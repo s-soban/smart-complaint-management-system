@@ -25,7 +25,7 @@ export const FileComplaintForm: React.FC<FileComplaintFormProps> = ({ onSuccess,
   const [contactPhone, setContactPhone] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-
+  const [isDragging, setIsDragging] = useState(false);
   // AI Live Insights State
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -85,25 +85,60 @@ export const FileComplaintForm: React.FC<FileComplaintFormProps> = ({ onSuccess,
     return () => clearTimeout(timer);
   }, [title, description, buildingId, roomArea]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const fileList = Array.from(e.target.files);
-      const validFiles: File[] = [];
-      const newPreviews: string[] = [];
+  const processImageFiles = (fileList: File[]) => {
+  const validFiles: File[] = [];
+  const newPreviews: string[] = [];
 
-      for (const file of fileList) {
-        if (file.size > 10 * 1024 * 1024) {
-          alert(`File ${file.name} exceeds 10MB limit.`);
-          continue;
-        }
-        validFiles.push(file);
-        newPreviews.push(URL.createObjectURL(file));
-      }
-
-      setImages(prev => [...prev, ...validFiles]);
-      setImagePreviews(prev => [...prev, ...newPreviews]);
+  for (const file of fileList) {
+    if (!file.type.startsWith('image/')) {
+      alert(`File ${file.name} is not an image.`);
+      continue;
     }
-  };
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert(`File ${file.name} exceeds 10MB limit.`);
+      continue;
+    }
+
+    validFiles.push(file);
+    newPreviews.push(URL.createObjectURL(file));
+  }
+
+  setImages(prev => [...prev, ...validFiles]);
+  setImagePreviews(prev => [...prev, ...newPreviews]);
+};
+
+const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  if (e.target.files) {
+    processImageFiles(Array.from(e.target.files));
+  }
+
+  e.target.value = '';
+};
+
+const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setIsDragging(true);
+};
+
+const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setIsDragging(false);
+};
+
+const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setIsDragging(false);
+
+  const droppedFiles = Array.from(e.dataTransfer.files);
+
+  if (droppedFiles.length > 0) {
+    processImageFiles(droppedFiles);
+  }
+};
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
@@ -345,7 +380,16 @@ export const FileComplaintForm: React.FC<FileComplaintFormProps> = ({ onSuccess,
               Upload Evidence Photos (Multiple supported)
             </label>
 
-            <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 text-center hover:border-blue-500 transition-colors bg-slate-50/50 dark:bg-slate-800/30">
+            <div
+           onDragOver={handleDragOver}
+           onDragLeave={handleDragLeave}
+           onDrop={handleDrop}
+           className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors ${
+           isDragging
+          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+           : 'border-slate-300 dark:border-slate-700 hover:border-blue-500 bg-slate-50/50 dark:bg-slate-800/30'
+           }`}
+            >
               <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
               <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
                 Drag & drop photos here, or <label htmlFor="file-upload-input" className="text-blue-600 dark:text-blue-400 cursor-pointer underline">browse files</label>
