@@ -348,7 +348,7 @@ export const FileComplaintForm: React.FC<FileComplaintFormProps> = ({ onSuccess,
             <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 text-center hover:border-blue-500 transition-colors bg-slate-50/50 dark:bg-slate-800/30">
               <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
               <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                Drag & drop photos here, or <label className="text-blue-600 dark:text-blue-400 cursor-pointer underline">browse files</label>
+                Drag & drop photos here, or <label htmlFor="file-upload-input" className="text-blue-600 dark:text-blue-400 cursor-pointer underline">browse files</label>
               </p>
               <p className="text-[11px] text-slate-400 mt-1">Supports JPG, PNG, WEBP up to 10MB each</p>
               <input
