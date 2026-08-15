@@ -11,7 +11,6 @@ interface AuthContextType {
   login: (identifier: string, password?: string) => Promise<void>;
   register: (userData: any) => Promise<void>;
   logout: () => void;
-  quickDemoLogin: (role: Role) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -82,14 +81,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
   };
 
-  const quickDemoLogin = async (targetRole: Role) => {
-    let demoIdentifier = 'soban1';
-    if (targetRole === 'maintenance') demoIdentifier = 'soban2';
-    if (targetRole === 'admin') demoIdentifier = 'soban3';
-
-    await login(demoIdentifier, 'soban@01011985');
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -100,8 +91,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLoading,
         login,
         register,
-        logout,
-        quickDemoLogin
+        logout
       }}
     >
       {children}

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Role } from '../../types';
-import { Sparkles, LogIn, Lock, Mail, GraduationCap, Wrench, ShieldCheck, KeyRound } from 'lucide-react';
+import { Sparkles, LogIn, Lock, Mail } from 'lucide-react';
 
 interface LoginFormProps {
   onSwitchToRegister: () => void;
@@ -13,20 +12,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onOpen
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-
-  const handleFillRole = (role: Role) => {
-    setErrorMsg('');
-    if (role === 'student') {
-      setIdentifier('soban1');
-      setPassword('soban@01011985');
-    } else if (role === 'maintenance') {
-      setIdentifier('soban2');
-      setPassword('soban@01011985');
-    } else if (role === 'admin') {
-      setIdentifier('soban3');
-      setPassword('soban@01011985');
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,75 +39,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onOpen
           <p className="text-xs text-slate-400">Smart Complaint & Infrastructure Management System</p>
         </div>
 
-        {/* Role Persona Classification & Credentials Card */}
-        <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-2.5">
-          <span className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider block text-center flex items-center justify-center gap-1.5">
-            <KeyRound className="w-3.5 h-3.5 text-blue-400" /> Select Role Persona to Fill Credentials:
-          </span>
-
-          <div className="space-y-2 text-[11px]">
-            {/* Student Role Button */}
-            <button
-              type="button"
-              onClick={() => handleFillRole('student')}
-              className="w-full flex items-center justify-between p-2.5 rounded-xl bg-blue-950/40 border border-blue-800/40 text-blue-300 hover:bg-blue-900/60 transition-all text-left group"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-blue-900/60 text-blue-400">
-                  <GraduationCap className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="font-extrabold block text-blue-200">👨‍🎓 Student Role</span>
-                  <span className="text-[10px] text-blue-400/80 font-mono">ID: soban1 | Pass: soban@01011985</span>
-                </div>
-              </div>
-              <span className="font-mono text-[10px] bg-blue-600 text-white px-2.5 py-1 rounded-lg font-black group-hover:scale-105 transition-transform shadow">
-                Fill Student →
-              </span>
-            </button>
-
-            {/* Maintenance Role Button */}
-            <button
-              type="button"
-              onClick={() => handleFillRole('maintenance')}
-              className="w-full flex items-center justify-between p-2.5 rounded-xl bg-amber-950/40 border border-amber-800/40 text-amber-300 hover:bg-amber-900/60 transition-all text-left group"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-amber-900/60 text-amber-400">
-                  <Wrench className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="font-extrabold block text-amber-200">🛠️ Maintenance Staff</span>
-                  <span className="text-[10px] text-amber-400/80 font-mono">ID: soban2 | Pass: soban@01011985</span>
-                </div>
-              </div>
-              <span className="font-mono text-[10px] bg-amber-600 text-white px-2.5 py-1 rounded-lg font-black group-hover:scale-105 transition-transform shadow">
-                Fill Staff →
-              </span>
-            </button>
-
-            {/* Admin Role Button */}
-            <button
-              type="button"
-              onClick={() => handleFillRole('admin')}
-              className="w-full flex items-center justify-between p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-800/40 text-indigo-300 hover:bg-indigo-900/60 transition-all text-left group"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-indigo-900/60 text-indigo-400">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="font-extrabold block text-indigo-200">👨‍💼 Admin Role</span>
-                  <span className="text-[10px] text-indigo-400/80 font-mono">ID: soban3 | Pass: soban@01011985</span>
-                </div>
-              </div>
-              <span className="font-mono text-[10px] bg-indigo-600 text-white px-2.5 py-1 rounded-lg font-black group-hover:scale-105 transition-transform shadow">
-                Fill Admin →
-              </span>
-            </button>
-          </div>
-        </div>
-
         {errorMsg && (
           <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs font-bold text-center">
             {errorMsg}
@@ -138,7 +54,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onOpen
               <input
                 type="text"
                 required
-                placeholder="e.g. soban1 (Student), soban2 (Staff), soban3 (Admin)"
+                placeholder="Enter your Email or Student/Employee ID"
                 value={identifier}
                 onChange={e => setIdentifier(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-700 bg-slate-800/80 text-white text-xs focus:ring-2 focus:ring-blue-500"
@@ -190,3 +106,4 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onOpen
     </div>
   );
 };
+
