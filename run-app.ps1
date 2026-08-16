@@ -39,6 +39,6 @@ $frontendJob = Start-Job -ScriptBlock {
 
 Write-Host "=========================================================="
 Write-Host "🚀 Smart Complaint Management System is running!"
-Write-Host "🌐 Frontend Portal: http://localhost:3000"
+Write-Host "🌐 Frontend Portal: https://smart-complaint-management-system-1-2hb8.onrender.com/"
 Write-Host "⚙️ Backend API:      http://localhost:5000/api"
 Write-Host "=========================================================="

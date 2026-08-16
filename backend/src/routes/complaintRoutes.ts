@@ -11,6 +11,7 @@ import {
   suggestResolution
 } from '../services/aiService';
 import { sendNotificationEmail } from '../utils/emailService';
+import { uploadToSupabaseStorage } from '../services/storageService';
 
 const router = Router();
 
@@ -170,16 +171,7 @@ router.post('/', authenticateToken, upload.array('images', 5), async (req: AuthR
     const files = req.files as Express.Multer.File[];
     if (files && files.length > 0) {
       for (const file of files) {
-        let imageUrl = `/uploads/complaints/${file.filename}`;
-        try {
-          if (file.path && fs.existsSync(file.path)) {
-            const buffer = fs.readFileSync(file.path);
-            const mimeType = file.mimetype || 'image/jpeg';
-            imageUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
-          }
-        } catch (e) {
-          console.error('Failed to encode image to Base64 Data URL:', e);
-        }
+        const imageUrl = await uploadToSupabaseStorage(file, 'complaints', complaintId as string);
 
         await dbRun(
           `INSERT INTO complaint_images (complaint_id, image_url, image_type, uploaded_by, created_at)
@@ -474,16 +466,7 @@ router.patch('/:id/status', authenticateToken, upload.array('repair_images', 5),
     const files = req.files as Express.Multer.File[];
     if (files && files.length > 0) {
       for (const file of files) {
-        let imageUrl = `/uploads/repairs/${file.filename}`;
-        try {
-          if (file.path && fs.existsSync(file.path)) {
-            const buffer = fs.readFileSync(file.path);
-            const mimeType = file.mimetype || 'image/jpeg';
-            imageUrl = `data:${mimeType};base64,${buffer.toString('base64')}`;
-          }
-        } catch (e) {
-          console.error('Failed to encode repair image to Base64 Data URL:', e);
-        }
+        const imageUrl = await uploadToSupabaseStorage(file, 'repairs', complaintId as string);
 
         await dbRun(
           `INSERT INTO complaint_images (complaint_id, image_url, image_type, uploaded_by, created_at)

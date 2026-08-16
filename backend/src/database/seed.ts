@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { dbExec, dbRun, dbGet } from './db';
 import { initDatabaseSchema } from './schema';
-import { predictCategory, calculatePriorityAndUrgency, suggestResolution } from '../services/aiService';
+import { suggestResolution } from '../services/aiService';
 
 // SVG Sample Image Creator for realistic image previews
 function createSampleSVG(text: string, bgColor: string, textColor: string = '#FFFFFF'): string {
@@ -16,24 +16,27 @@ function createSampleSVG(text: string, bgColor: string, textColor: string = '#FF
   </svg>`;
 }
 
-export async function seedDatabase() {
+export async function seedDatabase(forceClear: boolean = false) {
   console.log('🌱 Starting Database Seeding Process...');
 
   await initDatabaseSchema();
 
-  // Clear existing records
-  await dbExec(`
-    DELETE FROM audit_logs;
-    DELETE FROM duplicate_matches;
-    DELETE FROM notifications;
-    DELETE FROM complaint_comments;
-    DELETE FROM complaint_status_history;
-    DELETE FROM complaint_images;
-    DELETE FROM complaints;
-    DELETE FROM complaint_categories;
-    DELETE FROM buildings;
-    DELETE FROM users;
-  `);
+  // Clear existing records ONLY if forceClear is explicitly requested
+  if (forceClear) {
+    console.log('⚠️ forceClear enabled: Clearing existing seed records...');
+    await dbExec(`
+      DELETE FROM audit_logs;
+      DELETE FROM duplicate_matches;
+      DELETE FROM notifications;
+      DELETE FROM complaint_comments;
+      DELETE FROM complaint_status_history;
+      DELETE FROM complaint_images;
+      DELETE FROM complaints;
+      DELETE FROM complaint_categories;
+      DELETE FROM buildings;
+      DELETE FROM users;
+    `);
+  }
 
   const passwordHashDefault = await bcrypt.hash('password123', 10);
   const passwordHashSoban = await bcrypt.hash('soban@01011985', 10);
@@ -53,11 +56,16 @@ export async function seedDatabase() {
 
   const buildingIds: Record<string, number> = {};
   for (const b of buildingsData) {
-    const res = await dbRun(
-      'INSERT INTO buildings (name, code, description, total_floors) VALUES (?, ?, ?, ?)',
-      [b.name, b.code, b.description, b.floors]
-    );
-    buildingIds[b.code] = res.lastID;
+    let existing = await dbGet<any>('SELECT id FROM buildings WHERE code = ?', [b.code]);
+    if (!existing) {
+      const res = await dbRun(
+        'INSERT INTO buildings (name, code, description, total_floors) VALUES (?, ?, ?, ?)',
+        [b.name, b.code, b.description, b.floors]
+      );
+      buildingIds[b.code] = res.lastID;
+    } else {
+      buildingIds[b.code] = existing.id;
+    }
   }
 
   // 2. Seed Categories
@@ -82,15 +90,20 @@ export async function seedDatabase() {
 
   const categoryIds: Record<string, number> = {};
   for (const c of categoriesData) {
-    const res = await dbRun(
-      'INSERT INTO complaint_categories (name, description, icon, default_priority) VALUES (?, ?, ?, ?)',
-      [c.name, c.description, c.icon, c.defaultPrio]
-    );
-    categoryIds[c.name] = res.lastID;
+    let existing = await dbGet<any>('SELECT id FROM complaint_categories WHERE name = ?', [c.name]);
+    if (!existing) {
+      const res = await dbRun(
+        'INSERT INTO complaint_categories (name, description, icon, default_priority) VALUES (?, ?, ?, ?)',
+        [c.name, c.description, c.icon, c.defaultPrio]
+      );
+      categoryIds[c.name] = res.lastID;
+    } else {
+      categoryIds[c.name] = existing.id;
+    }
   }
 
   // 3. Seed Users
-  console.log('👤 Creating Admins, Maintenance Staff, and Students...');
+  console.log('👤 Checking Admins, Maintenance Staff, and Students...');
 
   // Admins
   const admins = [
@@ -100,12 +113,17 @@ export async function seedDatabase() {
   ];
   const adminIds: number[] = [];
   for (const a of admins) {
-    const res = await dbRun(
-      `INSERT INTO users (full_name, user_id_code, email, phone, department, password_hash, role)
-       VALUES (?, ?, ?, '555-0199', ?, ?, 'admin')`,
-      [a.name, a.idCode, a.email, a.dept, a.pass]
-    );
-    adminIds.push(res.lastID);
+    let existing = await dbGet<any>('SELECT id FROM users WHERE email = ? OR user_id_code = ?', [a.email, a.idCode]);
+    if (!existing) {
+      const res = await dbRun(
+        `INSERT INTO users (full_name, user_id_code, email, phone, department, password_hash, role)
+         VALUES (?, ?, ?, '555-0199', ?, ?, 'admin')`,
+        [a.name, a.idCode, a.email, a.dept, a.pass]
+      );
+      adminIds.push(res.lastID);
+    } else {
+      adminIds.push(existing.id);
+    }
   }
 
   // Maintenance Staff
@@ -118,12 +136,17 @@ export async function seedDatabase() {
   ];
   const staffIds: number[] = [];
   for (const m of maintenanceStaff) {
-    const res = await dbRun(
-      `INSERT INTO users (full_name, user_id_code, email, phone, department, password_hash, role)
-       VALUES (?, ?, ?, ?, ?, ?, 'maintenance')`,
-      [m.name, m.idCode, m.email, m.phone, m.dept, m.pass]
-    );
-    staffIds.push(res.lastID);
+    let existing = await dbGet<any>('SELECT id FROM users WHERE email = ? OR user_id_code = ?', [m.email, m.idCode]);
+    if (!existing) {
+      const res = await dbRun(
+        `INSERT INTO users (full_name, user_id_code, email, phone, department, password_hash, role)
+         VALUES (?, ?, ?, ?, ?, ?, 'maintenance')`,
+        [m.name, m.idCode, m.email, m.phone, m.dept, m.pass]
+      );
+      staffIds.push(res.lastID);
+    } else {
+      staffIds.push(existing.id);
+    }
   }
 
   // Students
@@ -142,15 +165,20 @@ export async function seedDatabase() {
   ];
   const studentIds: number[] = [];
   for (const s of students) {
-    const res = await dbRun(
-      `INSERT INTO users (full_name, user_id_code, email, phone, department, year_class, password_hash, role)
-       VALUES (?, ?, ?, '555-0100', ?, ?, ?, 'student')`,
-      [s.name, s.idCode, s.email, s.dept, s.year, s.pass]
-    );
-    studentIds.push(res.lastID);
+    let existing = await dbGet<any>('SELECT id FROM users WHERE email = ? OR user_id_code = ?', [s.email, s.idCode]);
+    if (!existing) {
+      const res = await dbRun(
+        `INSERT INTO users (full_name, user_id_code, email, phone, department, year_class, password_hash, role)
+         VALUES (?, ?, ?, '555-0100', ?, ?, ?, 'student')`,
+        [s.name, s.idCode, s.email, s.dept, s.year, s.pass]
+      );
+      studentIds.push(res.lastID);
+    } else {
+      studentIds.push(existing.id);
+    }
   }
 
-  // Generate Sample Images in uploads folder
+  // Generate Sample Images in uploads folder (local static fallback)
   const uploadsDir = path.resolve(process.cwd(), 'uploads');
   const complaintsDir = path.join(uploadsDir, 'complaints');
   const repairsDir = path.join(uploadsDir, 'repairs');
@@ -166,191 +194,197 @@ export async function seedDatabase() {
   fs.writeFileSync(path.join(repairsDir, 'sample-after-1.svg'), sampleAfterSvg);
   fs.writeFileSync(path.join(repairsDir, 'sample-after-2.svg'), sampleAfterSvg);
 
-  // 4. Seed 50 Complaints
-  console.log('📋 Creating 50 Sample Complaints with Realistic Life-cycles...');
+  // 4. Seed Complaints (Idempotent: Only insert if complaint table has < 10 rows)
+  const existingComplaintCountRow = await dbGet<any>('SELECT COUNT(*) as count FROM complaints');
+  const existingCount = Number(existingComplaintCountRow?.count || 0);
 
-  const complaintTemplates = [
-    { title: 'Ceiling fan making loud noise and wobbling', cat: 'Electrical', bCode: 'EHB', room: 'Room 204', status: 'resolved', prio: 'medium', urgency: 55 },
-    { title: 'Ceiling fan in room 204 is broken and vibrating', cat: 'Electrical', bCode: 'EHB', room: 'Room 204', status: 'closed', prio: 'medium', urgency: 50, isDup: true },
-    { title: 'Severe water leakage from tap in washroom', cat: 'Plumbing', bCode: 'SH1', room: '2nd Floor Washroom B', status: 'resolved', prio: 'high', urgency: 82 },
-    { title: 'Sparking wire near main distribution board', cat: 'Electrical', bCode: 'SBA', room: 'Ground Floor Corridor', status: 'in_progress', prio: 'critical', urgency: 96 },
-    { title: 'Wi-Fi connection failing continuously in library', cat: 'Internet / Network', bCode: 'LIB', room: '3rd Floor Reading Hall', status: 'assigned', prio: 'medium', urgency: 60 },
-    { title: 'Projector HDMI port broken in lecture hall', cat: 'Classroom', bCode: 'EHB', room: 'Auditorium 101', status: 'resolved', prio: 'high', urgency: 78 },
-    { title: 'Fume hood ventilation fan stopped working', cat: 'Laboratory', bCode: 'SBA', room: 'Organic Chem Lab 302', status: 'in_progress', prio: 'high', urgency: 88 },
-    { title: 'Geyser not heating water in hostel block', cat: 'Hostel', bCode: 'SH2', room: 'Room 412', status: 'submitted', prio: 'medium', urgency: 50 },
-    { title: 'Flush valve leaking onto washroom floor', cat: 'Washroom', bCode: 'ADM', room: '4th Floor Restroom', status: 'resolved', prio: 'medium', urgency: 65 },
-    { title: 'Broken wooden desk armrest in classroom', cat: 'Furniture', bCode: 'EHB', room: 'Room 305', status: 'resolved', prio: 'low', urgency: 25 },
-    { title: 'CCTV Camera offline near east entrance gate', cat: 'Security', bCode: 'ADM', room: 'Main Entrance Gate 2', status: 'under_review', prio: 'critical', urgency: 92 },
-    { title: 'Garbage bin overflowing and emitting bad odor', cat: 'Cleaning / Sanitation', bCode: 'CDH', room: 'Cafeteria Courtyard', status: 'resolved', prio: 'low', urgency: 35 },
-    { title: 'Large pothole on pathway leading to gym', cat: 'Roads / Parking', bCode: 'SPC', room: 'Outer Pathway', status: 'waiting_parts', prio: 'medium', urgency: 45 },
-    { title: 'Book scanner screen flickering in library', cat: 'Library', bCode: 'LIB', room: '1st Floor Circulation Desk', status: 'assigned', prio: 'low', urgency: 30 },
-    { title: 'Treadmill emergency stop button jammed', cat: 'Sports Facilities', bCode: 'SPC', room: 'Fitness Center Room 2', status: 'in_progress', prio: 'medium', urgency: 58 },
-    { title: 'Water purifier tastes strange and yellow tint', cat: 'Water Supply', bCode: 'SBA', room: '2nd Floor Water Station', status: 'in_progress', prio: 'critical', urgency: 94 },
-    { title: 'AC split unit blowing warm air', cat: 'Air Conditioning', bCode: 'ADM', room: 'Conference Room B', status: 'resolved', prio: 'high', urgency: 75 },
-    { title: 'Light bulb fused in stairwell', cat: 'Electrical', bCode: 'SH1', room: 'West Stairwell 3rd Floor', status: 'resolved', prio: 'low', urgency: 32 },
-    { title: 'Main door lock stuck and key won\'t turn', cat: 'Hostel', bCode: 'SH1', room: 'Room 108', status: 'resolved', prio: 'high', urgency: 72 },
-    { title: 'Overhead projector image displaced and blurry', cat: 'Classroom', bCode: 'SBA', room: 'Lecture Hall A2', status: 'assigned', prio: 'medium', urgency: 48 },
-    { title: 'Exposed copper wire hanging near water cooler', cat: 'Electrical', bCode: 'CDH', room: 'Dining Hall Entrance', status: 'in_progress', prio: 'critical', urgency: 98 },
-    { title: 'Drain clogged causing standing water in sink', cat: 'Plumbing', bCode: 'SH2', room: 'Ground Floor Washroom', status: 'resolved', prio: 'medium', urgency: 62 },
-    { title: 'Ethernet port wall jack loose and disconnected', cat: 'Internet / Network', bCode: 'EHB', room: 'Computer Lab 4', status: 'resolved', prio: 'low', urgency: 38 },
-    { title: 'Whiteboard duster rack fallen off wall', cat: 'Classroom', bCode: 'EHB', room: 'Room 110', status: 'closed', prio: 'low', urgency: 20 },
-    { title: 'Oscilloscope power cable frayed', cat: 'Laboratory', bCode: 'EHB', room: 'Circuits Lab 201', status: 'in_progress', prio: 'medium', urgency: 68 },
-    { title: 'Window latch broken allowing rain inside', cat: 'Hostel', bCode: 'SH2', room: 'Room 304', status: 'resolved', prio: 'medium', urgency: 54 },
-    { title: 'Restroom mirror loose on wall mounts', cat: 'Washroom', bCode: 'LIB', room: 'Ground Floor Restroom', status: 'assigned', prio: 'medium', urgency: 44 },
-    { title: 'Library chair wheels broken', cat: 'Furniture', bCode: 'LIB', room: 'Quiet Study Area 2', status: 'resolved', prio: 'low', urgency: 28 },
-    { title: 'Biometric access scanner failing employee scans', cat: 'Security', bCode: 'ADM', room: 'Admin Main Lobby', status: 'resolved', prio: 'high', urgency: 80 },
-    { title: 'Cobwebs and heavy dust accumulated on vents', cat: 'Cleaning / Sanitation', bCode: 'SBA', room: '3rd Floor Hallway', status: 'resolved', prio: 'low', urgency: 22 },
-    { title: 'Streetlight pole 4 dark near parking lot', cat: 'Roads / Parking', bCode: 'SPC', room: 'West Car Park', status: 'assigned', prio: 'medium', urgency: 52 },
-    { title: 'Basketball net torn on main outdoor court', cat: 'Sports Facilities', bCode: 'SPC', room: 'Outdoor Basketball Court 1', status: 'resolved', prio: 'low', urgency: 18 },
-    { title: 'Water cooler leaking water onto wooden floor', cat: 'Water Supply', bCode: 'EHB', room: '1st Floor Lobby', status: 'in_progress', prio: 'high', urgency: 84 },
-    { title: 'Chiller unit making grinding metal sound', cat: 'Air Conditioning', bCode: 'SBA', room: 'Central Plant Room', status: 'waiting_parts', prio: 'high', urgency: 86 },
-    { title: 'Corridor lights flickering randomly', cat: 'Electrical', bCode: 'SH2', room: '2nd Floor Corridor', status: 'submitted', prio: 'medium', urgency: 42 },
-    { title: 'Tap handle snapped off in hand', cat: 'Plumbing', bCode: 'CDH', room: 'Kitchen Wash Basin', status: 'resolved', prio: 'high', urgency: 76 },
-    { title: 'Wi-Fi router dead in student hostel lobby', cat: 'Internet / Network', bCode: 'SH1', room: 'Lobby Area', status: 'in_progress', prio: 'medium', urgency: 65 },
-    { title: 'Podium microphone cable noisy and cutting out', cat: 'Classroom', bCode: 'SBA', room: 'Main Auditorium', status: 'assigned', prio: 'medium', urgency: 50 },
-    { title: 'Chemical storage cabinet key stuck in lock', cat: 'Laboratory', bCode: 'SBA', room: 'Store Room 105', status: 'resolved', prio: 'high', urgency: 74 },
-    { title: 'Balcony door hinge corroded and squeaking', cat: 'Hostel', bCode: 'SH1', room: 'Room 402', status: 'resolved', prio: 'low', urgency: 24 },
-    { title: 'Paper towel dispenser broken', cat: 'Washroom', bCode: 'SBA', room: '1st Floor Washroom', status: 'closed', prio: 'low', urgency: 15 },
-    { title: 'Computer lab desk leg unstable', cat: 'Furniture', bCode: 'EHB', room: 'Lab 3', status: 'resolved', prio: 'low', urgency: 30 },
-    { title: 'Emergency exit sign light turned off', cat: 'Security', bCode: 'EHB', room: 'South Exit Hallway', status: 'in_progress', prio: 'high', urgency: 78 },
-    { title: 'Recycling bin broken cover', cat: 'Cleaning / Sanitation', bCode: 'CDH', room: 'Dining Hall B', status: 'resolved', prio: 'low', urgency: 19 },
-    { title: 'Parking lines faded in faculty area', cat: 'Roads / Parking', bCode: 'ADM', room: 'Faculty Parking Zone', status: 'under_review', prio: 'low', urgency: 26 },
-    { title: 'Air conditioning thermostat unresponsive', cat: 'Air Conditioning', bCode: 'LIB', room: 'Archive Vault', status: 'in_progress', prio: 'high', urgency: 82 },
-    { title: 'Power outlet smoking in electrical engineering lab', cat: 'Electrical', bCode: 'EHB', room: 'Power Systems Lab 102', status: 'in_progress', prio: 'critical', urgency: 99 },
-    { title: 'Main water pipeline burst in basement', cat: 'Plumbing', bCode: 'ADM', room: 'Basement Service Room', status: 'in_progress', prio: 'critical', urgency: 97 },
-    { title: 'Hostel study room table light broken', cat: 'Electrical', bCode: 'SH2', room: 'Study Hall', status: 'resolved', prio: 'low', urgency: 35 },
-    { title: 'Laboratory sink leaking into cabinet', cat: 'Plumbing', bCode: 'SBA', room: 'Bio Lab 202', status: 'resolved', prio: 'high', urgency: 79 }
-  ];
+  if (existingCount === 0) {
+    console.log('📋 Creating Initial Sample Complaints with Realistic Life-cycles...');
 
-  for (let i = 0; i < complaintTemplates.length; i++) {
-    const tmpl = complaintTemplates[i];
-    const complaintId = `CMP-2026-${String(i + 1).padStart(5, '0')}`;
-    const studentId = studentIds[i % studentIds.length];
-    const staffId = staffIds[i % staffIds.length];
-    const catId = categoryIds[tmpl.cat] || categoryIds['Other'];
-    const bId = buildingIds[tmpl.bCode] || buildingIds['SBA'];
+    const complaintTemplates = [
+      { title: 'Ceiling fan making loud noise and wobbling', cat: 'Electrical', bCode: 'EHB', room: 'Room 204', status: 'resolved', prio: 'medium', urgency: 55 },
+      { title: 'Ceiling fan in room 204 is broken and vibrating', cat: 'Electrical', bCode: 'EHB', room: 'Room 204', status: 'closed', prio: 'medium', urgency: 50, isDup: true },
+      { title: 'Severe water leakage from tap in washroom', cat: 'Plumbing', bCode: 'SH1', room: '2nd Floor Washroom B', status: 'resolved', prio: 'high', urgency: 82 },
+      { title: 'Sparking wire near main distribution board', cat: 'Electrical', bCode: 'SBA', room: 'Ground Floor Corridor', status: 'in_progress', prio: 'critical', urgency: 96 },
+      { title: 'Wi-Fi connection failing continuously in library', cat: 'Internet / Network', bCode: 'LIB', room: '3rd Floor Reading Hall', status: 'assigned', prio: 'medium', urgency: 60 },
+      { title: 'Projector HDMI port broken in lecture hall', cat: 'Classroom', bCode: 'EHB', room: 'Auditorium 101', status: 'resolved', prio: 'high', urgency: 78 },
+      { title: 'Fume hood ventilation fan stopped working', cat: 'Laboratory', bCode: 'SBA', room: 'Organic Chem Lab 302', status: 'in_progress', prio: 'high', urgency: 88 },
+      { title: 'Geyser not heating water in hostel block', cat: 'Hostel', bCode: 'SH2', room: 'Room 412', status: 'submitted', prio: 'medium', urgency: 50 },
+      { title: 'Flush valve leaking onto washroom floor', cat: 'Washroom', bCode: 'ADM', room: '4th Floor Restroom', status: 'resolved', prio: 'medium', urgency: 65 },
+      { title: 'Broken wooden desk armrest in classroom', cat: 'Furniture', bCode: 'EHB', room: 'Room 305', status: 'resolved', prio: 'low', urgency: 25 },
+      { title: 'CCTV Camera offline near east entrance gate', cat: 'Security', bCode: 'ADM', room: 'Main Entrance Gate 2', status: 'under_review', prio: 'critical', urgency: 92 },
+      { title: 'Garbage bin overflowing and emitting bad odor', cat: 'Cleaning / Sanitation', bCode: 'CDH', room: 'Cafeteria Courtyard', status: 'resolved', prio: 'low', urgency: 35 },
+      { title: 'Large pothole on pathway leading to gym', cat: 'Roads / Parking', bCode: 'SPC', room: 'Outer Pathway', status: 'waiting_parts', prio: 'medium', urgency: 45 },
+      { title: 'Book scanner screen flickering in library', cat: 'Library', bCode: 'LIB', room: '1st Floor Circulation Desk', status: 'assigned', prio: 'low', urgency: 30 },
+      { title: 'Treadmill emergency stop button jammed', cat: 'Sports Facilities', bCode: 'SPC', room: 'Fitness Center Room 2', status: 'in_progress', prio: 'medium', urgency: 58 },
+      { title: 'Water purifier tastes strange and yellow tint', cat: 'Water Supply', bCode: 'SBA', room: '2nd Floor Water Station', status: 'in_progress', prio: 'critical', urgency: 94 },
+      { title: 'AC split unit blowing warm air', cat: 'Air Conditioning', bCode: 'ADM', room: 'Conference Room B', status: 'resolved', prio: 'high', urgency: 75 },
+      { title: 'Light bulb fused in stairwell', cat: 'Electrical', bCode: 'SH1', room: 'West Stairwell 3rd Floor', status: 'resolved', prio: 'low', urgency: 32 },
+      { title: 'Main door lock stuck and key won\'t turn', cat: 'Hostel', bCode: 'SH1', room: 'Room 108', status: 'resolved', prio: 'high', urgency: 72 },
+      { title: 'Overhead projector image displaced and blurry', cat: 'Classroom', bCode: 'SBA', room: 'Lecture Hall A2', status: 'assigned', prio: 'medium', urgency: 48 },
+      { title: 'Exposed copper wire hanging near water cooler', cat: 'Electrical', bCode: 'CDH', room: 'Dining Hall Entrance', status: 'in_progress', prio: 'critical', urgency: 98 },
+      { title: 'Drain clogged causing standing water in sink', cat: 'Plumbing', bCode: 'SH2', room: 'Ground Floor Washroom', status: 'resolved', prio: 'medium', urgency: 62 },
+      { title: 'Ethernet port wall jack loose and disconnected', cat: 'Internet / Network', bCode: 'EHB', room: 'Computer Lab 4', status: 'resolved', prio: 'low', urgency: 38 },
+      { title: 'Whiteboard duster rack fallen off wall', cat: 'Classroom', bCode: 'EHB', room: 'Room 110', status: 'closed', prio: 'low', urgency: 20 },
+      { title: 'Oscilloscope power cable frayed', cat: 'Laboratory', bCode: 'EHB', room: 'Circuits Lab 201', status: 'in_progress', prio: 'medium', urgency: 68 },
+      { title: 'Window latch broken allowing rain inside', cat: 'Hostel', bCode: 'SH2', room: 'Room 304', status: 'resolved', prio: 'medium', urgency: 54 },
+      { title: 'Restroom mirror loose on wall mounts', cat: 'Washroom', bCode: 'LIB', room: 'Ground Floor Restroom', status: 'assigned', prio: 'medium', urgency: 44 },
+      { title: 'Library chair wheels broken', cat: 'Furniture', bCode: 'LIB', room: 'Quiet Study Area 2', status: 'resolved', prio: 'low', urgency: 28 },
+      { title: 'Biometric access scanner failing employee scans', cat: 'Security', bCode: 'ADM', room: 'Admin Main Lobby', status: 'resolved', prio: 'high', urgency: 80 },
+      { title: 'Cobwebs and heavy dust accumulated on vents', cat: 'Cleaning / Sanitation', bCode: 'SBA', room: '3rd Floor Hallway', status: 'resolved', prio: 'low', urgency: 22 },
+      { title: 'Streetlight pole 4 dark near parking lot', cat: 'Roads / Parking', bCode: 'SPC', room: 'West Car Park', status: 'assigned', prio: 'medium', urgency: 52 },
+      { title: 'Basketball net torn on main outdoor court', cat: 'Sports Facilities', bCode: 'SPC', room: 'Outdoor Basketball Court 1', status: 'resolved', prio: 'low', urgency: 18 },
+      { title: 'Water cooler leaking water onto wooden floor', cat: 'Water Supply', bCode: 'EHB', room: '1st Floor Lobby', status: 'in_progress', prio: 'high', urgency: 84 },
+      { title: 'Chiller unit making grinding metal sound', cat: 'Air Conditioning', bCode: 'SBA', room: 'Central Plant Room', status: 'waiting_parts', prio: 'high', urgency: 86 },
+      { title: 'Corridor lights flickering randomly', cat: 'Electrical', bCode: 'SH2', room: '2nd Floor Corridor', status: 'submitted', prio: 'medium', urgency: 42 },
+      { title: 'Tap handle snapped off in hand', cat: 'Plumbing', bCode: 'CDH', room: 'Kitchen Wash Basin', status: 'resolved', prio: 'high', urgency: 76 },
+      { title: 'Wi-Fi router dead in student hostel lobby', cat: 'Internet / Network', bCode: 'SH1', room: 'Lobby Area', status: 'in_progress', prio: 'medium', urgency: 65 },
+      { title: 'Podium microphone cable noisy and cutting out', cat: 'Classroom', bCode: 'SBA', room: 'Main Auditorium', status: 'assigned', prio: 'medium', urgency: 50 },
+      { title: 'Chemical storage cabinet key stuck in lock', cat: 'Laboratory', bCode: 'SBA', room: 'Store Room 105', status: 'resolved', prio: 'high', urgency: 74 },
+      { title: 'Balcony door hinge corroded and squeaking', cat: 'Hostel', bCode: 'SH1', room: 'Room 402', status: 'resolved', prio: 'low', urgency: 24 },
+      { title: 'Paper towel dispenser broken', cat: 'Washroom', bCode: 'SBA', room: '1st Floor Washroom', status: 'closed', prio: 'low', urgency: 15 },
+      { title: 'Computer lab desk leg unstable', cat: 'Furniture', bCode: 'EHB', room: 'Lab 3', status: 'resolved', prio: 'low', urgency: 30 },
+      { title: 'Emergency exit sign light turned off', cat: 'Security', bCode: 'EHB', room: 'South Exit Hallway', status: 'in_progress', prio: 'high', urgency: 78 },
+      { title: 'Recycling bin broken cover', cat: 'Cleaning / Sanitation', bCode: 'CDH', room: 'Dining Hall B', status: 'resolved', prio: 'low', urgency: 19 },
+      { title: 'Parking lines faded in faculty area', cat: 'Roads / Parking', bCode: 'ADM', room: 'Faculty Parking Zone', status: 'under_review', prio: 'low', urgency: 26 },
+      { title: 'Air conditioning thermostat unresponsive', cat: 'Air Conditioning', bCode: 'LIB', room: 'Archive Vault', status: 'in_progress', prio: 'high', urgency: 82 },
+      { title: 'Power outlet smoking in electrical engineering lab', cat: 'Electrical', bCode: 'EHB', room: 'Power Systems Lab 102', status: 'in_progress', prio: 'critical', urgency: 99 },
+      { title: 'Main water pipeline burst in basement', cat: 'Plumbing', bCode: 'ADM', room: 'Basement Service Room', status: 'in_progress', prio: 'critical', urgency: 97 },
+      { title: 'Hostel study room table light broken', cat: 'Electrical', bCode: 'SH2', room: 'Study Hall', status: 'resolved', prio: 'low', urgency: 35 },
+      { title: 'Laboratory sink leaking into cabinet', cat: 'Plumbing', bCode: 'SBA', room: 'Bio Lab 202', status: 'resolved', prio: 'high', urgency: 79 }
+    ];
 
-    // Generate created timestamp spanning past 30 days
-    const daysAgo = Math.floor(Math.random() * 25);
-    const createdDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
-    const createdIso = createdDate.toISOString();
+    for (let i = 0; i < complaintTemplates.length; i++) {
+      const tmpl = complaintTemplates[i];
+      const complaintId = `CMP-2026-${String(i + 1).padStart(5, '0')}`;
+      const studentId = studentIds[i % studentIds.length];
+      const staffId = staffIds[i % staffIds.length];
+      const catId = categoryIds[tmpl.cat] || categoryIds['Other'];
+      const bId = buildingIds[tmpl.bCode] || buildingIds['SBA'];
 
-    let resolvedIso: string | null = null;
-    if (tmpl.status === 'resolved' || tmpl.status === 'closed') {
-      const resolvedDate = new Date(createdDate.getTime() + (Math.floor(Math.random() * 48) + 4) * 3600 * 1000);
-      resolvedIso = resolvedDate.toISOString();
-    }
+      const daysAgo = Math.floor(Math.random() * 25);
+      const createdDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+      const createdIso = createdDate.toISOString();
 
-    const resolutionSummary = tmpl.status === 'resolved' || tmpl.status === 'closed'
-      ? suggestResolution(tmpl.title, tmpl.title, tmpl.cat)
-      : null;
+      let resolvedIso: string | null = null;
+      if (tmpl.status === 'resolved' || tmpl.status === 'closed') {
+        const resolvedDate = new Date(createdDate.getTime() + (Math.floor(Math.random() * 48) + 4) * 3600 * 1000);
+        resolvedIso = resolvedDate.toISOString();
+      }
 
-    const masterDupId = tmpl.isDup ? `CMP-2026-00001` : null;
+      const resolutionSummary = tmpl.status === 'resolved' || tmpl.status === 'closed'
+        ? suggestResolution(tmpl.title, tmpl.title, tmpl.cat)
+        : null;
 
-    await dbRun(
-      `INSERT INTO complaints (
-        id, title, description, category_id, issue_type, building_id, floor, room_area,
-        date_noticed, priority, urgency_score, priority_reason, status,
-        submitted_by, assigned_to, is_duplicate_of, resolution_summary, resolved_at, closed_at,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, 'Standard Repair', ?, 'Floor 2', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        complaintId,
-        tmpl.title,
-        `Reported facility defect: ${tmpl.title}. Requires maintenance inspection and appropriate component restoration.`,
-        catId,
-        bId,
-        tmpl.room,
-        createdIso.substring(0, 10),
-        tmpl.prio,
-        tmpl.urgency,
-        `AI Automated priority assessment assigned ${tmpl.prio.toUpperCase()} rating.`,
-        tmpl.status,
-        studentId,
-        tmpl.status !== 'submitted' && tmpl.status !== 'under_review' ? staffId : null,
-        masterDupId,
-        resolutionSummary,
-        resolvedIso,
-        tmpl.status === 'closed' ? resolvedIso : null,
-        createdIso,
-        resolvedIso || createdIso
-      ]
-    );
+      const masterDupId = tmpl.isDup ? `CMP-2026-00001` : null;
 
-    // Add before image for all complaints
-    await dbRun(
-      `INSERT INTO complaint_images (complaint_id, image_url, image_type, uploaded_by, created_at)
-       VALUES (?, '/uploads/complaints/sample-before-1.svg', 'before', ?, ?)`,
-      [complaintId, studentId, createdIso]
-    );
+      await dbRun(
+        `INSERT INTO complaints (
+          id, title, description, category_id, issue_type, building_id, floor, room_area,
+          date_noticed, priority, urgency_score, priority_reason, status,
+          submitted_by, assigned_to, is_duplicate_of, resolution_summary, resolved_at, closed_at,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'Standard Repair', ?, 'Floor 2', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          complaintId,
+          tmpl.title,
+          `Reported facility defect: ${tmpl.title}. Requires maintenance inspection and appropriate component restoration.`,
+          catId,
+          bId,
+          tmpl.room,
+          createdIso.substring(0, 10),
+          tmpl.prio,
+          tmpl.urgency,
+          `AI Automated priority assessment assigned ${tmpl.prio.toUpperCase()} rating.`,
+          tmpl.status,
+          studentId,
+          tmpl.status !== 'submitted' && tmpl.status !== 'under_review' ? staffId : null,
+          masterDupId,
+          resolutionSummary,
+          resolvedIso,
+          tmpl.status === 'closed' ? resolvedIso : null,
+          createdIso,
+          resolvedIso || createdIso
+        ]
+      );
 
-    // Add after image for resolved/closed complaints
-    if (tmpl.status === 'resolved' || tmpl.status === 'closed') {
+      // Add before image
       await dbRun(
         `INSERT INTO complaint_images (complaint_id, image_url, image_type, uploaded_by, created_at)
-         VALUES (?, '/uploads/repairs/sample-after-1.svg', 'after', ?, ?)`,
-        [complaintId, staffId, resolvedIso]
+         VALUES (?, '/uploads/complaints/sample-before-1.svg', 'before', ?, ?)`,
+        [complaintId, studentId, createdIso]
       );
-    }
 
-    // Add timeline history
-    await dbRun(
-      `INSERT INTO complaint_status_history (complaint_id, from_status, to_status, changed_by, comment, created_at)
-       VALUES (?, NULL, 'submitted', ?, 'Complaint logged in portal', ?)`,
-      [complaintId, studentId, createdIso]
-    );
+      // Add after image for resolved/closed
+      if (tmpl.status === 'resolved' || tmpl.status === 'closed') {
+        await dbRun(
+          `INSERT INTO complaint_images (complaint_id, image_url, image_type, uploaded_by, created_at)
+           VALUES (?, '/uploads/repairs/sample-after-1.svg', 'after', ?, ?)`,
+          [complaintId, staffId, resolvedIso]
+        );
+      }
 
-    if (tmpl.status !== 'submitted') {
+      // Timeline history
       await dbRun(
         `INSERT INTO complaint_status_history (complaint_id, from_status, to_status, changed_by, comment, created_at)
-         VALUES (?, 'submitted', ?, ?, 'Status updated during maintenance lifecycle', ?)`,
-        [complaintId, tmpl.status, adminIds[0], resolvedIso || createdIso]
+         VALUES (?, NULL, 'submitted', ?, 'Complaint logged in portal', ?)`,
+        [complaintId, studentId, createdIso]
       );
-    }
 
-    // Add duplicate match record if duplicate template
-    if (tmpl.isDup) {
+      if (tmpl.status !== 'submitted') {
+        await dbRun(
+          `INSERT INTO complaint_status_history (complaint_id, from_status, to_status, changed_by, comment, created_at)
+           VALUES (?, 'submitted', ?, ?, 'Status updated during maintenance lifecycle', ?)`,
+          [complaintId, tmpl.status, adminIds[0], resolvedIso || createdIso]
+        );
+      }
+
+      if (tmpl.isDup) {
+        await dbRun(
+          `INSERT INTO duplicate_matches (source_complaint_id, target_complaint_id, similarity_score, status, created_at)
+           VALUES (?, 'CMP-2026-00001', 88.5, 'merged', ?)`,
+          [complaintId, createdIso]
+        );
+      }
+    }
+  }
+
+  // 5. Seed Notifications (only if empty)
+  const existingNotificationCount = await dbGet<any>('SELECT COUNT(*) as count FROM notifications');
+  if (Number(existingNotificationCount?.count || 0) === 0) {
+    console.log('🔔 Seeding Sample Notifications...');
+    for (const stfId of staffIds) {
       await dbRun(
-        `INSERT INTO duplicate_matches (source_complaint_id, target_complaint_id, similarity_score, status, created_at)
-         VALUES (?, 'CMP-2026-00001', 88.5, 'merged', ?)`,
-        [complaintId, createdIso]
+        `INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
+         VALUES (?, '🛠️ Maintenance Queue Ready', 'Review your assigned work orders and upload completion photos when resolved.', 'warning', 0, ?)`,
+        [stfId, now.toISOString()]
+      );
+    }
+    for (const admId of adminIds) {
+      await dbRun(
+        `INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
+         VALUES (?, '🚨 Critical Complaint Alert', 'Power outlet smoking reported in Engineering Hub B (Room 102). Immediate action recommended.', 'critical', 0, ?)`,
+        [admId, now.toISOString()]
       );
     }
   }
 
-  // 5. Seed Notifications
-  console.log('🔔 Seeding Sample Notifications...');
-  for (const stfId of staffIds) {
-    await dbRun(
-      `INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
-       VALUES (?, '🛠️ Maintenance Queue Ready', 'Review your assigned work orders and upload completion photos when resolved.', 'warning', 0, ?)`,
-      [stfId, now.toISOString()]
-    );
-  }
-  for (const admId of adminIds) {
-    await dbRun(
-      `INSERT INTO notifications (user_id, title, message, type, is_read, created_at)
-       VALUES (?, '🚨 Critical Complaint Alert', 'Power outlet smoking reported in Engineering Hub B (Room 102). Immediate action recommended.', 'critical', 0, ?)`,
-      [admId, now.toISOString()]
-    );
-  }
-
-  console.log('✅ Database Seeding Completed Successfully!');
+  console.log('✅ Database Seeding Verification Completed Successfully!');
   console.log('----------------------------------------------------');
-  console.log('🔑 NEW SOBAN ACCOUNTS:');
+  console.log('🔑 SOBAN ACCOUNTS:');
   console.log('   👨‍🎓 Student:     soban1   / soban@01011985');
   console.log('   🛠️ Maintenance: soban2   / soban@01011985');
   console.log('   👨‍💼 Admin:       soban3   / soban@01011985');
-  console.log('🔑 CLASSIC DEMO ACCOUNTS:');
+  console.log('🔑 DEMO ACCOUNTS:');
   console.log('   👨‍🎓 Student:     student1@campus.edu / password123');
   console.log('   🛠️ Maintenance: staff1@campus.edu   / password123');
   console.log('   👨‍💼 Admin:       admin@campus.edu    / password123');
   console.log('----------------------------------------------------');
 }
 
-// Execute seed directly if called via npm run seed
-if (process.argv[1] && process.argv[1].endsWith('seed.ts')) {
-  seedDatabase().catch((err) => {
+// Execute seed directly if called via node dist/database/seed.js or ts-node
+if (process.argv[1] && (process.argv[1].endsWith('seed.ts') || process.argv[1].endsWith('seed.js'))) {
+  seedDatabase(true).catch((err) => {
     console.error('Seeding failed:', err);
     process.exit(1);
   });

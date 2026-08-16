@@ -16,6 +16,7 @@ The system empowers **Students/Users** to submit facility complaints with live A
   - Pre-submission AI duplicate detection alert.
   - Real-time visual status tracking timeline (`Submitted` → `Under Review` → `Assigned` → `In Progress` → `Resolved` → `Closed`).
   - In-app notification center bell feed.
+  - Password Reset PIN verification via Resend HTTP REST API.
 - **Administrator Dashboard**:
   - Executive KPI summary cards (Total, Critical Active, Resolution Rate, Overdue Count, Avg Resolution Time).
   - Interactive SVG analytics charts (Category breakdown, Building hotspots, Department load, Staff work distribution).
@@ -29,111 +30,55 @@ The system empowers **Students/Users** to submit facility complaints with live A
 - **Maintenance Staff Workstation**:
   - Assigned work orders list sorted by priority & urgency score (0-100).
   - Update work status (`In Progress`, `Waiting for Parts`, `Resolved & Completed`).
-  - Upload **After-Repair Completion Photos** and technical resolution logs.
+  - Upload **After-Repair Completion Photos** directly to persistent Supabase Storage.
   - View personal repair completion history.
 
 ---
 
-### 2. 🧠 Built-In AI & Intelligent Features
-1. **Live Auto-Categorization**: Natural Language Processing (NLP) text classifier matches complaint title and description keywords against facility category dictionaries.
-2. **Priority & Urgency Scoring Engine (0–100)**: Evaluates hazard keywords (`spark`, `smoke`, `leak`, `exposed wire`, `security breach`), room criticality (Exam Hall, Server Room, Science Lab), and category baseline weights.
-3. **Duplicate & Semantic Similarity Detector**: Calculates composite similarity score using TF-IDF word vector similarity + geographical proximity (Building & Room match) to prevent duplicate work orders.
-4. **Campus Infrastructure Insights Engine**: Scans active complaints across campus to identify recurring defect clusters (e.g. `Science Block A registered 5 electrical issues -> Recommend comprehensive audit`).
+## 🛠️ Production Stack Architecture
+
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Lucide React Icons, Vite.
+- **Backend**: Node.js, Express, TypeScript, Multer, JWT Auth, bcryptjs.
+- **Database**: Supabase PostgreSQL (with fallback for local development).
+- **File Storage**: Supabase Storage (`complaint-images` bucket).
+- **Email Service**: Resend HTTP REST API (HTTPS port 443 — prevents Render SMTP timeouts).
+- **Deployment Platform**: Render (Web Service & Static Site).
 
 ---
 
 ## 🔑 Demo Login Accounts
 
-Pre-populated seed database contains 20 sample students, 3 admins, 5 maintenance staff, and 50 realistic complaints:
+Pre-populated seed database contains sample students, admins, maintenance staff, and 50 realistic complaints:
 
 | Role | Email / Username | Password | Access Level |
 | :--- | :--- | :--- | :--- |
-| 👨‍🎓 **Student** | `student1@campus.edu` | `password123` | Student Dashboard & Complaint Filing |
-| 🛠️ **Maintenance Staff** | `staff1@campus.edu` | `password123` | Assigned Work Orders & Completion Photos |
-| 👨‍💼 **Administrator** | `admin@campus.edu` | `password123` | Master Control, Insights, Analytics & Reports |
+| 👨‍🎓 **Student** | `student1@campus.edu` / `soban1` | `password123` / `soban@01011985` | Student Dashboard & Complaint Filing |
+| 🛠️ **Maintenance Staff** | `staff1@campus.edu` / `soban2` | `password123` / `soban@01011985` | Assigned Work Orders & Completion Photos |
+| 👨‍💼 **Administrator** | `admin@campus.edu` / `soban3` | `password123` / `soban@01011985` | Master Control, Insights, Analytics & Reports |
 
 ---
 
-## 🛠️ Technology Stack & Project Structure
+## 🚀 Quick Start & Deployment Guide
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS, Lucide React Icons, Vite.
-- **Backend**: Node.js, Express, TypeScript, Multer File Uploads, JWT Auth, bcryptjs.
-- **Database**: SQLite3 with relational foreign keys, indices, and transactions.
-- **Architecture**:
-  ```text
-  /backend
-    /src
-      /database      # DB connection (db.ts), Schema (schema.ts), Seed (seed.ts)
-      /middleware    # JWT Auth & Role-Based Access Control (authMiddleware.ts)
-      /routes        # Auth, Complaints, Campus Insights, Notifications
-      /services      # AI Intelligence Engine (aiService.ts)
-      index.ts       # Express server initialization
-    /uploads         # Stored uploaded photos (/complaints and /repairs)
-  /frontend
-    /src
-      /components
-        /admin       # Admin Dashboard, Complaints Table, Duplicates, Campus Insights, Reports, Users
-        /auth        # Login, Register, Forgot Password
-        /common      # Navbar, Sidebar, Badges, Timeline, Detail Modal, Notifications
-        /maintenance # Maintenance Workstation & Work Order Modal
-        /student     # Student Dashboard & File Complaint Form
-      /context       # AuthContext & NotificationContext
-      /services      # API Client (api.ts)
-      /types         # TypeScript Interfaces
-  ```
+For full production deployment instructions on Render with Supabase PostgreSQL, Supabase Storage, and Resend Email API, see [DEPLOYMENT.md](file:///c:/Users/Lenovo/Desktop/smart%20complaint%20management%20system/DEPLOYMENT.md).
 
----
+### Local Development
 
-## 🚀 Quick Start Guide
-
-### Prerequisites
-- Node.js (v18+)
-
-### Installation & Launching
-
-1. Run setup to configure standalone Node.js (if not already installed system-wide):
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\setup-node.ps1
+1. Install dependencies:
+   ```bash
+   npm run install:all
    ```
 
-2. Execute full application launcher (installs dependencies, seeds database, and boots backend & frontend):
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\run-app.ps1
+2. Configure environment variables in `.env`:
+   ```bash
+   cp .env.example .env
    ```
 
-3. Access the application in your browser:
+3. Build and run development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Access application in browser:
    - **Frontend Application**: `http://localhost:3000`
    - **Backend API**: `http://localhost:5000/api`
-
----
-
-## 📡 API Endpoints Overview
-
-### Authentication (`/api/auth`)
-- `POST /api/auth/register` - Student registration
-- `POST /api/auth/login` - Login (returns JWT)
-- `GET /api/auth/me` - Current user profile
-- `GET /api/auth/users` - Admin user list & role updates
-
-### Complaints (`/api/complaints`)
-- `POST /api/complaints` - File complaint (with Multer image uploads)
-- `POST /api/complaints/ai-analyze` - Live AI auto-suggest & duplicate check
-- `GET /api/complaints` - List complaints (filtered by role, category, building, priority, status)
-- `GET /api/complaints/:id` - Detailed complaint record with photos & timeline
-- `PATCH /api/complaints/:id/status` - Update status & upload repair completion photos
-- `PATCH /api/complaints/:id/assign` - Admin staff assignment
-- `POST /api/complaints/duplicates/merge` - Admin duplicate merge workspace
-
-### Campus Insights & Analytics (`/api/campus`)
-- `GET /api/campus/buildings` - List campus buildings & rooms
-- `GET /api/campus/categories` - List categories & default priorities
-- `GET /api/campus/insights` - Problem Sites, Repaired Sites, and AI Recommendations
-- `GET /api/campus/analytics` - Executive KPI summary & chart metrics
-- `GET /api/campus/reports` - Export complaints dataset for CSV/PDF audit reports
-
----
-
-## 🔒 Security Specifications
-- **Authentication**: JWT token verification with expiration.
-- **Authorization**: Role-Based Access Control (RBAC) enforced on backend API endpoints. Students can only view their own complaints; Maintenance staff can access assigned work orders; Admins have full access.
-- **Input Validation**: Sanitized SQL queries via parameters and file upload mimetype/size validation.

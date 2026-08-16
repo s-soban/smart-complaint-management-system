@@ -17,7 +17,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // CORS setup
-const allowedOrigins = process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : '*';
+const clientOrigin = process.env.FRONTEND_URL || process.env.CLIENT_URL;
+const allowedOrigins = clientOrigin ? clientOrigin.split(',').map(s => s.trim()) : '*';
 app.use(cors({
   origin: allowedOrigins,
   credentials: true
